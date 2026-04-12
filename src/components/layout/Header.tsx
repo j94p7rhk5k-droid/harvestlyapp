@@ -1,0 +1,175 @@
+'use client';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import {
+  Menu,
+  Bell,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  LogOut,
+  User,
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMonth } from '@/contexts/MonthContext';
+import { getMonthName, cn } from '@/lib/utils';
+
+// ─── Route → page title mapping ────────────────────────────────────────────
+
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/budget': 'Budget',
+  '/goals': 'Goals',
+  '/transactions': 'Transactions',
+  '/settings': 'Settings',
+};
+
+function getPageTitle(pathname: string): string {
+  for (const [route, title] of Object.entries(PAGE_TITLES)) {
+    if (pathname === route || pathname.startsWith(route + '/')) return title;
+  }
+  return 'Dashboard';
+}
+
+// ─── Props ──────────────────────────────────────────────────────────────────
+
+interface HeaderProps {
+  onMenuClick: () => void;
+  onAddTransaction?: () => void;
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
+  const pathname = usePathname();
+  const { userProfile, signOut } = useAuth();
+  const { currentMonth, nextMonth, prevMonth } = useMonth();
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
+
+  const title = getPageTitle(pathname);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
+        setAvatarOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    setAvatarOpen(false);
+    await signOut();
+  }, [signOut]);
+
+  return (
+    <header className="sticky top-0 z-30 h-[72px] bg-navy-950/80 backdrop-blur-xl border-b border-navy-800/50">
+      <div className="flex items-center justify-between h-full px-4 md:px-8">
+        {/* ── Left: Menu + Title ──────────────────────────────────────────── */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onMenuClick}
+            className="p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors lg:hidden"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-semibold text-white tracking-tight">
+            {title}
+          </h1>
+        </div>
+
+        {/* ── Center: Month selector ─────────────────────────────────────── */}
+        <div className="hidden sm:flex items-center gap-2 bg-navy-900/60 rounded-xl px-1.5 py-1.5 border border-navy-800/50">
+          <button
+            onClick={prevMonth}
+            className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-medium text-white min-w-[130px] text-center tabular-nums">
+            {getMonthName(currentMonth)}
+          </span>
+          <button
+            onClick={nextMonth}
+            className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* ── Right: Actions ─────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2">
+          {/* Quick add transaction */}
+          <button
+            onClick={onAddTransaction}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-all duration-200 shadow-glow hover:shadow-glow-lg btn-glow"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden md:inline">Add</span>
+          </button>
+
+          {/* Notification bell */}
+          <button className="relative p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full" />
+          </button>
+
+          {/* User avatar dropdown */}
+          <div className="relative" ref={avatarRef}>
+            <button
+              onClick={() => setAvatarOpen(!avatarOpen)}
+              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-navy-800/50 transition-colors"
+            >
+              {userProfile?.photoURL ? (
+                <img
+                  src={userProfile.photoURL}
+                  alt={userProfile.displayName}
+                  className="w-8 h-8 rounded-full ring-2 ring-navy-700 object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-sm font-semibold text-white">
+                  {userProfile?.displayName?.charAt(0)?.toUpperCase() ?? '?'}
+                </div>
+              )}
+              <ChevronDown
+                className={cn(
+                  'w-4 h-4 text-navy-400 transition-transform duration-200 hidden md:block',
+                  avatarOpen && 'rotate-180'
+                )}
+              />
+            </button>
+
+            {/* Dropdown */}
+            {avatarOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-navy-900 border border-navy-800 shadow-xl py-2 animate-scale-in origin-top-right">
+                <div className="px-4 py-2.5 border-b border-navy-800">
+                  <p className="text-sm font-medium text-white truncate">
+                    {userProfile?.displayName}
+                  </p>
+                  <p className="text-xs text-navy-400 truncate">
+                    {userProfile?.email}
+                  </p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-navy-300 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
