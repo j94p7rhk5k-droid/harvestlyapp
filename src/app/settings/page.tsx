@@ -11,7 +11,6 @@ import {
   Sprout,
   Shield,
   AlertTriangle,
-  Landmark,
 } from 'lucide-react';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
@@ -22,7 +21,6 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
-import ConnectedAccounts from '@/components/plaid/ConnectedAccounts';
 import { cn } from '@/lib/utils';
 
 // ─── Animation variants ────────────────────────────────────────────────────
@@ -252,27 +250,6 @@ export default function SettingsPage() {
               <p className="text-xs text-navy-500 mt-3">
                 This symbol will be used to format all currency values across the app.
               </p>
-            </Card>
-          </motion.div>
-
-          {/* ── Connected Bank Accounts ──────────────────────────────────── */}
-          <motion.div variants={itemVariants}>
-            <Card noHover>
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center">
-                  <Landmark className="w-4 h-4 text-brand-400" />
-                </div>
-                <h2 className="text-base font-semibold text-white">
-                  Connected Banks
-                </h2>
-              </div>
-
-              <p className="text-xs text-navy-400 mb-4">
-                Connect your bank accounts to automatically import transactions.
-                Your credentials are handled securely by Plaid and never stored on our servers.
-              </p>
-
-              {user && <ConnectedAccounts userId={user.uid} />}
             </Card>
           </motion.div>
 

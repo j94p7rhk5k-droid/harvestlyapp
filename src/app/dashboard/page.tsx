@@ -12,14 +12,11 @@ import {
   DollarSign,
   LayoutDashboard,
   BarChart3,
-  Building2,
   ArrowRight,
-  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
 import { useBudget } from '@/hooks/useBudget';
-import { usePlaidAccounts } from '@/hooks/usePlaidAccounts';
 import AppLayout from '@/components/layout/AppLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -29,9 +26,6 @@ import CashFlowTable from '@/components/charts/CashFlowTable';
 import DonutChart from '@/components/charts/DonutChart';
 import SpendingBarChart from '@/components/charts/SpendingBarChart';
 import TransactionList from '@/components/charts/TransactionList';
-import PlaidLinkButton from '@/components/plaid/PlaidLinkButton';
-import ConnectedAccounts from '@/components/plaid/ConnectedAccounts';
-import ImportTransactionsModal from '@/components/plaid/ImportTransactionsModal';
 import {
   formatCurrency,
   cn,
@@ -39,7 +33,6 @@ import {
   getMonthName,
 } from '@/lib/utils';
 import type { DashboardData, CategoryType } from '@/types';
-import type { PlaidSyncedTransaction, SyncResult } from '@/hooks/usePlaidAccounts';
 
 // ─── Animation variants ────────────────────────────────────────────────────
 
@@ -133,13 +126,7 @@ export default function DashboardPage() {
   const { user, userProfile } = useAuth();
   const { currentMonth } = useMonth();
   const { budgetMonth, loading, addTransaction, addCategory } = useBudget(user?.uid, currentMonth);
-  const { accounts } = usePlaidAccounts(user?.uid);
-  const [bankBannerDismissed, setBankBannerDismissed] = useState(false);
-  const [importModalOpen, setImportModalOpen] = useState(false);
-  const [syncedTransactions, setSyncedTransactions] = useState<PlaidSyncedTransaction[]>([]);
-
   const currency = userProfile?.currency ?? '$';
-  const hasConnectedBanks = accounts.length > 0;
 
   // ── Compute dashboard data ──────────────────────────────────────────────
 
@@ -290,73 +277,6 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-
-        {/* ── Connect Bank Banner ──────────────────────────────────────── */}
-        {!loading && !hasConnectedBanks && !bankBannerDismissed && user && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative rounded-2xl border border-brand-500/20 bg-gradient-to-r from-brand-500/10 via-brand-500/5 to-amber-500/10 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-          >
-            <div className="w-12 h-12 rounded-xl bg-brand-500/15 flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-6 h-6 text-brand-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-white">
-                Connect your bank to auto-import transactions
-              </h3>
-              <p className="text-xs text-navy-400 mt-0.5">
-                Link your accounts securely through Plaid. Transactions will be categorized automatically.
-              </p>
-            </div>
-            <PlaidLinkButton
-              userId={user.uid}
-              onSuccess={() => {}}
-            />
-            <button
-              onClick={() => setBankBannerDismissed(true)}
-              className="absolute top-3 right-3 p-1 rounded-lg text-navy-500 hover:text-navy-300 hover:bg-navy-800/50 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-
-        {/* ── Connected Banks Quick Actions ───────────────────────────────── */}
-        {!loading && hasConnectedBanks && user && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card noHover>
-              <ConnectedAccounts
-                userId={user.uid}
-                onSyncComplete={(result: SyncResult) => {
-                  setSyncedTransactions(result.transactions);
-                  setImportModalOpen(true);
-                }}
-              />
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Import Transactions Modal */}
-        {user && (
-          <ImportTransactionsModal
-            open={importModalOpen}
-            onClose={() => {
-              setImportModalOpen(false);
-              setSyncedTransactions([]);
-            }}
-            transactions={syncedTransactions}
-            userId={user.uid}
-            month={currentMonth}
-            existingCategories={budgetMonth?.categories ?? []}
-            addTransaction={addTransaction}
-            addCategory={addCategory}
-            onImport={() => {}}
-          />
-        )}
 
         {/* Loading state */}
         {loading && <DashboardSkeleton />}
