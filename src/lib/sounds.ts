@@ -138,6 +138,13 @@ export function playClose() {
   playTone(440, 0.1, 'sine', 0.04, 0.12);
 }
 
+/** Bell chime — new notification */
+export function playNotification() {
+  playTone(1760, 0.1, 'sine', 0.09);       // A6
+  playTone(2217, 0.08, 'sine', 0.07, 0.06); // C#7
+  playNoise(0.05, 0.02, 0.08);
+}
+
 /** Big cha-ching — for bulk imports completing */
 export function playBigSuccess() {
   // Triple bell

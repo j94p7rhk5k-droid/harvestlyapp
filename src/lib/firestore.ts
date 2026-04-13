@@ -461,9 +461,51 @@ export async function leaveHousehold(
   await batch.commit();
 }
 
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+function notificationsCol(userId: string): CollectionReference {
+  return collection(db, 'users', userId, 'notifications');
+}
+
+export async function addNotification(
+  userId: string,
+  notification: Omit<AppNotification, 'id'>,
+): Promise<void> {
+  const id = generateId();
+  await setDoc(doc(db, 'users', userId, 'notifications', id), { ...notification, id });
+}
+
+export async function markNotificationRead(
+  userId: string,
+  notificationId: string,
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'notifications', notificationId), { read: true });
+}
+
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  const q = query(notificationsCol(userId), where('read', '==', false));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => batch.update(d.ref, { read: true }));
+  await batch.commit();
+}
+
+export async function deleteOldNotifications(userId: string, olderThanDays: number = 30): Promise<void> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const q = query(notificationsCol(userId), where('createdAt', '<', cutoff.toISOString()));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+}
+
 // ─── Chat History ───────────────────────────────────────────────────────────
 
 import type { ChatMessage } from '@/types/chat';
+import type { AppNotification } from '@/types';
 
 const MAX_CHAT_MESSAGES = 10;
 

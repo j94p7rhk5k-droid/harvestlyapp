@@ -142,6 +142,25 @@ export interface DashboardData {
   leftToSpendActual: number;
 }
 
+// ─── Notification ───────────────────────────────────────────────────────────
+
+export type NotificationType = 'overspend' | 'partner_activity' | 'goal_reached';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  dedupKey: string;
+  meta?: {
+    categoryId?: string;
+    goalId?: string;
+    month?: string;
+  };
+}
+
 // ─── Utility / Partial types for create/update operations ────────────────────
 
 export type NewCategory = Omit<Category, 'id' | 'actual'>;

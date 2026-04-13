@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Sparkles } from 'lucide-react';
@@ -9,6 +9,8 @@ import { useMonth } from '@/contexts/MonthContext';
 import { useChatContext } from '@/contexts/ChatContext';
 import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import { useHousehold } from '@/hooks/useHousehold';
+import { useNotifications } from '@/hooks/useNotifications';
+import { playNotification } from '@/lib/sounds';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import AddTransactionModal from '@/components/budget/AddTransactionModal';
@@ -40,12 +42,22 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, addTransaction, deleteTransaction, addCategory, updateCategory } = useHouseholdBudget();
-  const { pendingInvites } = useHousehold();
+  const { budgetMonth, partnerBudgetMonth, addTransaction, deleteTransaction, addCategory, updateCategory } = useHouseholdBudget();
+  const { pendingInvites, partnerProfile } = useHousehold();
+  const notifs = useNotifications(effectiveUserId, budgetMonth, partnerBudgetMonth, partnerProfile?.displayName);
   const chat = useChatContext();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const prevUnreadRef = useRef(0);
+
+  // Play sound when new notifications arrive
+  useEffect(() => {
+    if (notifs.unreadCount > prevUnreadRef.current && prevUnreadRef.current >= 0) {
+      playNotification();
+    }
+    prevUnreadRef.current = notifs.unreadCount;
+  }, [notifs.unreadCount]);
 
   // Keep chat context synced with current budget hooks
   useEffect(() => {
@@ -89,6 +101,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <Header
           onMenuClick={() => setSidebarOpen(true)}
           onAddTransaction={() => setAddModalOpen(true)}
+          notifications={notifs.notifications}
+          unreadCount={notifs.unreadCount}
+          onMarkNotificationRead={notifs.markRead}
+          onMarkAllNotificationsRead={notifs.markAllRead}
         />
 
         <main className="flex-1 overflow-y-auto">

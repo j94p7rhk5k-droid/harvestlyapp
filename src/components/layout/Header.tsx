@@ -18,6 +18,7 @@ import { useMonth } from '@/contexts/MonthContext';
 import { useHouseholdView } from '@/contexts/HouseholdViewContext';
 import { getMonthName, cn } from '@/lib/utils';
 import { playClick, playPop } from '@/lib/sounds';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 
 // ─── Route → page title mapping ────────────────────────────────────────────
 
@@ -41,25 +42,41 @@ function getPageTitle(pathname: string): string {
 interface HeaderProps {
   onMenuClick: () => void;
   onAddTransaction?: () => void;
+  notifications?: import('@/types').AppNotification[];
+  unreadCount?: number;
+  onMarkNotificationRead?: (id: string) => void;
+  onMarkAllNotificationsRead?: () => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
+export default function Header({
+  onMenuClick,
+  onAddTransaction,
+  notifications = [],
+  unreadCount = 0,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+}: HeaderProps) {
   const pathname = usePathname();
   const { userProfile, signOut } = useAuth();
   const { currentMonth, nextMonth, prevMonth } = useMonth();
   const { isInHousehold, viewMode, setViewMode } = useHouseholdView();
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const title = getPageTitle(pathname);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (avatarRef.current && !avatarRef.current.contains(e.target as Node)) {
         setAvatarOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -148,10 +165,26 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
           </button>
 
           {/* Notification bell */}
-          <button className="relative p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-500 rounded-full" />
-          </button>
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => { setNotifOpen(!notifOpen); playClick(); }}
+              className="relative p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-[16px] bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-0.5">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkRead={(id) => onMarkNotificationRead?.(id)}
+                onMarkAllRead={() => onMarkAllNotificationsRead?.()}
+              />
+            )}
+          </div>
 
           {/* User avatar dropdown */}
           <div className="relative" ref={avatarRef}>

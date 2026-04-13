@@ -15,9 +15,11 @@ export function useHouseholdBudget() {
   // Always fetch own budget
   const myBudget = useBudget(effectiveUserId, currentMonth);
 
-  // Fetch partner's budget only in household view
+  const { isInHousehold } = useHouseholdView();
+
+  // Always fetch partner's budget when in a household (needed for notifications)
   const partnerBudget = useBudget(
-    isHouseholdView ? partnerUserId : undefined,
+    isInHousehold ? partnerUserId : undefined,
     currentMonth,
   );
 
@@ -27,7 +29,7 @@ export function useHouseholdBudget() {
     return mergeBudgetMonths(myBudget.budgetMonth, partnerBudget.budgetMonth);
   }, [isHouseholdView, myBudget.budgetMonth, partnerBudget.budgetMonth]);
 
-  const loading = myBudget.loading || (isHouseholdView && partnerBudget.loading);
+  const loading = myBudget.loading || (isInHousehold && partnerBudget.loading);
 
   return {
     // Display data (personal or merged)
@@ -42,6 +44,9 @@ export function useHouseholdBudget() {
     deleteTransaction: myBudget.deleteTransaction,
     updateBudgetPeriod: myBudget.updateBudgetPeriod,
     updateRollover: myBudget.updateRollover,
+
+    // Partner data (for notifications)
+    partnerBudgetMonth: partnerBudget.budgetMonth,
 
     // View mode info
     isHouseholdView,
