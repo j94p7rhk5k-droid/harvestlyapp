@@ -83,7 +83,7 @@ export default function AddTransactionModal({
         type: category.type,
         amount: parsedAmount,
         date,
-        note: note.trim() || undefined,
+        note: note.trim() || '',
         isRecurring,
         recurrenceFrequency: isRecurring ? recurrenceFrequency : undefined,
       });
