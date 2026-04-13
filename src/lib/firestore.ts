@@ -425,11 +425,13 @@ export function createDefaultBudgetMonth(
     cat('Entertainment', 'expense', 0, 'Gamepad2'),
     cat('Health', 'expense', 0, 'Heart'),
     cat('Personal Care', 'expense', 0, 'Sparkles'),
+    cat('Kids Activities', 'expense', 0, 'Trophy'),
 
     // Bills
     cat('Rent/Mortgage', 'bill', 0, 'Home'),
     cat('Electricity', 'bill', 0, 'Zap'),
     cat('Water', 'bill', 0, 'Droplets'),
+    cat('Trash', 'bill', 0, 'Trash2'),
     cat('Internet', 'bill', 0, 'Wifi'),
     cat('Phone', 'bill', 0, 'Smartphone'),
     cat('Subscriptions', 'bill', 0, 'Repeat'),
