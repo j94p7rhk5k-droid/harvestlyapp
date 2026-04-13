@@ -146,10 +146,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             resolvedId = existing?.id ?? '';
           }
           if (!resolvedId) {
-            // Auto-create the category if it doesn't exist
-            const created = await addCategory({ name: categoryName, type: type ?? 'expense', planned: 0 });
-            resolvedId = created.id;
-            createdCategoriesRef.current.set(categoryName.toLowerCase(), created.id);
+            // Find closest match by partial name
+            const partial = budgetMonth?.categories.find(
+              (c) => c.name.toLowerCase().includes(categoryName.toLowerCase()) ||
+                     categoryName.toLowerCase().includes(c.name.toLowerCase()),
+            );
+            if (partial) {
+              resolvedId = partial.id;
+            } else {
+              throw new Error(`Category "${categoryName}" not found — please specify which existing category to use`);
+            }
           }
 
           // Write directly to the correct month (may differ from current view)

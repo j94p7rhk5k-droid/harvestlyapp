@@ -169,8 +169,8 @@ ${txList}
 
 ## Important rules
 1. When the user mentions spending or income, use the add_transaction tool.
-2. If a matching category does NOT exist yet, FIRST call add_category to create it, THEN call add_transaction.
-3. For categoryId in add_transaction, use the ID from existing categories above. If you just created the category, use an empty string for categoryId.
+2. IMPORTANT: Always use an EXISTING category from the list above. Do NOT create new categories unless the user explicitly asks you to. If the transaction doesn't clearly fit an existing category, ASK the user which category it should go under. For example: "I see this is a car payment of $196.94. Which category should I put this under? Your existing options are: Car Payment (debt), Insurance (bill), or I can create a new one if you'd like."
+3. For categoryId in add_transaction, use the ID from existing categories above.
 4. Today's date is ${new Date().toISOString().split('T')[0]}. Use it ONLY when the user doesn't specify a date.
 5. CRITICAL: When importing from bank statements or CSV files, ALWAYS use the actual transaction dates from the document. Do NOT default to today's date or the current month. A March statement must use March dates. The app will automatically route transactions to the correct monthly budget based on their dates.
 6. Amounts should always be positive numbers.
