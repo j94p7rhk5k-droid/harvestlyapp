@@ -10,6 +10,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
   title: 'Harvestly | Smart Budget Tracking',
   description:
     'Cultivate your financial future with Harvestly. Track spending, set savings goals, manage debt, and visualize your financial health — all in one beautiful dashboard.',
