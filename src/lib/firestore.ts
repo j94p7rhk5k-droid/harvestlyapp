@@ -58,7 +58,9 @@ function goalTransactionsCol(userId: string): CollectionReference {
 // ─── Budget Month ────────────────────────────────────────────────────────────
 
 /**
- * Fetch a budget month. If it doesn't exist, create one with defaults.
+ * Fetch a budget month. If it doesn't exist, create one by copying
+ * planned amounts and recurring transactions from the most recent month.
+ * Falls back to defaults if no previous month exists.
  */
 export async function getBudgetMonth(
   userId: string,
@@ -71,10 +73,94 @@ export async function getBudgetMonth(
     return snap.data() as BudgetMonth;
   }
 
-  // First access for this month — bootstrap with defaults
-  const created = createDefaultBudgetMonth(userId, month);
+  // Look for the most recent existing month to copy from
+  const colRef = collection(db, 'users', userId, 'budgetMonths');
+  const q = query(colRef, orderBy('month', 'desc'), firestoreLimit(1));
+  const prevSnap = await getDocs(q);
+
+  let created: BudgetMonth;
+
+  if (!prevSnap.empty) {
+    const prevMonth = prevSnap.docs[0].data() as BudgetMonth;
+    created = copyForwardBudgetMonth(prevMonth, userId, month);
+  } else {
+    created = createDefaultBudgetMonth(userId, month);
+  }
+
   await setDoc(ref, created);
   return created;
+}
+
+/**
+ * Create a new budget month by copying planned amounts and recurring
+ * transactions from a previous month.
+ */
+function copyForwardBudgetMonth(
+  source: BudgetMonth,
+  userId: string,
+  month: string,
+): BudgetMonth {
+  const [yearStr, monthStr] = month.split('-');
+  const year = parseInt(yearStr, 10);
+  const mo = parseInt(monthStr, 10);
+  const startDate = `${month}-01`;
+  const lastDay = new Date(year, mo, 0).getDate();
+  const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
+
+  // Copy categories with planned amounts, reset actuals to 0
+  const categories: Category[] = source.categories.map((cat) => ({
+    ...cat,
+    id: generateId(),
+    actual: 0,
+  }));
+
+  // Build a map from old category IDs to new ones (for transaction copying)
+  const categoryIdMap = new Map<string, { newId: string; name: string; type: CategoryType }>();
+  source.categories.forEach((oldCat, i) => {
+    categoryIdMap.set(oldCat.id, {
+      newId: categories[i].id,
+      name: oldCat.name,
+      type: oldCat.type,
+    });
+  });
+
+  // Copy recurring transactions with updated dates and new category IDs
+  const transactions: Transaction[] = source.transactions
+    .filter((tx) => tx.isRecurring)
+    .map((tx) => {
+      const mapped = categoryIdMap.get(tx.categoryId);
+      // Keep same day of month, but in the new month
+      const oldDay = tx.date.split('-')[2] ?? '01';
+      const day = Math.min(parseInt(oldDay, 10), lastDay);
+      const newDate = `${month}-${String(day).padStart(2, '0')}`;
+
+      return {
+        ...tx,
+        id: generateId(),
+        categoryId: mapped?.newId ?? tx.categoryId,
+        categoryName: mapped?.name ?? tx.categoryName,
+        date: newDate,
+      };
+    });
+
+  // Recalculate actuals from the copied recurring transactions
+  const totals = new Map<string, number>();
+  for (const t of transactions) {
+    totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + t.amount);
+  }
+  for (const cat of categories) {
+    cat.actual = totals.get(cat.id) ?? 0;
+  }
+
+  return {
+    id: month,
+    userId,
+    month,
+    period: { startDate, endDate, currency: source.period.currency },
+    rollover: 0,
+    categories,
+    transactions,
+  };
 }
 
 /**
