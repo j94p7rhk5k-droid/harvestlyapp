@@ -1,6 +1,5 @@
 'use client';
 
-import { useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { playPop } from '@/lib/sounds';
@@ -11,10 +10,8 @@ import {
   ArrowLeftRight,
   Repeat,
   Settings,
-  LogOut,
   X,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 // ─── Nav items ──────────────────────────────────────────────────────────────
@@ -39,11 +36,6 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { userProfile, signOut } = useAuth();
-
-  const handleSignOut = useCallback(async () => {
-    await signOut();
-  }, [signOut]);
 
   return (
     <>
@@ -118,39 +110,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           })}
         </nav>
 
-        {/* ── User profile + Sign out ──────────────────────────────────────── */}
-        <div className="px-3 pb-4 mt-auto border-t border-navy-800/50 pt-4">
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            {userProfile?.photoURL ? (
-              <img
-                src={userProfile.photoURL}
-                alt={userProfile.displayName}
-                className="w-9 h-9 rounded-full ring-2 ring-navy-700 object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-sm font-semibold text-white">
-                {userProfile?.displayName?.charAt(0)?.toUpperCase() ?? '?'}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
-                {userProfile?.displayName ?? 'User'}
-              </p>
-              <p className="text-xs text-navy-400 truncate">
-                {userProfile?.email ?? ''}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign out</span>
-          </button>
-        </div>
       </aside>
     </>
   );
