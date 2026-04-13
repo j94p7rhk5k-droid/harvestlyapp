@@ -91,55 +91,57 @@ export default function AppLayout({ children }: AppLayoutProps) {
   if (!user) return <LoadingScreen />;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-navy-950">
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header
-          onMenuClick={() => setSidebarOpen(true)}
-          onAddTransaction={() => setAddModalOpen(true)}
-          notifications={notifs.notifications}
-          unreadCount={notifs.unreadCount}
-          onMarkNotificationRead={notifs.markRead}
-          onMarkAllNotificationsRead={notifs.markAllRead}
+    <div className="flex flex-col h-screen overflow-hidden bg-navy-950">
+      <div className="flex flex-1 min-h-0">
+        <Sidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-4 md:px-8 py-6 md:py-8">
-            {/* Pending household invite banner */}
-            {pendingInvites.length > 0 && (
-              <Link
-                href="/settings#household"
-                className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/15 transition-colors"
-              >
-                <Users className="w-5 h-5 text-violet-400 flex-shrink-0" />
-                <p className="text-sm text-violet-300">
-                  <span className="font-medium">{pendingInvites[0].fromDisplayName}</span>{' '}
-                  invited you to share their budget.{' '}
-                  <span className="underline">View invite →</span>
-                </p>
-              </Link>
-            )}
-            {children}
-          </div>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Header
+            onMenuClick={() => setSidebarOpen(true)}
+            onAddTransaction={() => setAddModalOpen(true)}
+            notifications={notifs.notifications}
+            unreadCount={notifs.unreadCount}
+            onMarkNotificationRead={notifs.markRead}
+            onMarkAllNotificationsRead={notifs.markAllRead}
+          />
 
-          {/* Footer */}
-          <footer className="border-t border-navy-800/50 px-4 md:px-8 py-4 mt-auto">
-            <div className="mx-auto max-w-7xl text-center space-y-1.5">
-              <p className="text-[11px] text-navy-500 italic">
-                "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."
-                <span className="not-italic ml-1">— Galatians 6:9</span>
-              </p>
-              <p className="text-[10px] text-navy-600">
-                &copy; {new Date().getFullYear()} Harvestly. All rights reserved.
-              </p>
+          <main className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-7xl px-4 md:px-8 py-6 md:py-8">
+              {/* Pending household invite banner */}
+              {pendingInvites.length > 0 && (
+                <Link
+                  href="/settings#household"
+                  className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/15 transition-colors"
+                >
+                  <Users className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                  <p className="text-sm text-violet-300">
+                    <span className="font-medium">{pendingInvites[0].fromDisplayName}</span>{' '}
+                    invited you to share their budget.{' '}
+                    <span className="underline">View invite →</span>
+                  </p>
+                </Link>
+              )}
+              {children}
             </div>
-          </footer>
-        </main>
+          </main>
+        </div>
       </div>
+
+      {/* Footer — spans full width below sidebar + main */}
+      <footer className="border-t border-navy-800/50 px-4 md:px-8 py-4 bg-navy-950">
+        <div className="mx-auto max-w-7xl text-center space-y-1.5">
+          <p className="text-[11px] text-navy-500 italic">
+            "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."
+            <span className="not-italic ml-1">— Galatians 6:9</span>
+          </p>
+          <p className="text-[10px] text-navy-600">
+            &copy; {new Date().getFullYear()} Harvestly. All rights reserved.
+          </p>
+        </div>
+      </footer>
 
       <AddTransactionModal
         open={addModalOpen}
