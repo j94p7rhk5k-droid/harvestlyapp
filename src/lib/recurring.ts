@@ -118,8 +118,8 @@ export function getRecurringDatesInMonth(
  */
 export function getMonthlyOccurrences(frequency: RecurrenceFrequency | undefined): number {
   switch (frequency ?? 'monthly') {
-    case 'weekly': return 4.33;
-    case 'biweekly': return 2.17;
+    case 'weekly': return 4;
+    case 'biweekly': return 2;
     case 'monthly': return 1;
     case 'quarterly': return 1 / 3;
     case 'yearly': return 1 / 12;
