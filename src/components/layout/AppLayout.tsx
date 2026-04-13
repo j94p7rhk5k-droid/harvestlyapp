@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Users, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
+import { useChatContext } from '@/contexts/ChatContext';
 import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import { useHousehold } from '@/hooks/useHousehold';
-import { useChat } from '@/hooks/useChat';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import AddTransactionModal from '@/components/budget/AddTransactionModal';
@@ -42,20 +42,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { currentMonth } = useMonth();
   const { budgetMonth, addTransaction, deleteTransaction, addCategory, updateCategory } = useHouseholdBudget();
   const { pendingInvites } = useHousehold();
+  const chat = useChatContext();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
-  const chat = useChat({
-    effectiveUserId,
-    month: currentMonth,
-    currency: userProfile?.currency ?? '$',
-    budgetMonth,
-    addCategory,
-    addTransaction,
-    deleteTransaction,
-    updateCategory,
-  });
+  // Keep chat context synced with current budget hooks
+  useEffect(() => {
+    chat.setBudgetHooks({
+      effectiveUserId,
+      month: currentMonth,
+      currency: userProfile?.currency ?? '$',
+      budgetMonth,
+      addCategory,
+      addTransaction,
+      deleteTransaction,
+      updateCategory,
+    });
+  }, [effectiveUserId, currentMonth, userProfile?.currency, budgetMonth, addCategory, addTransaction, deleteTransaction, updateCategory]);
 
   const handleSaveTransaction = useCallback(async (tx: NewTransaction) => {
     await addTransaction(tx);
