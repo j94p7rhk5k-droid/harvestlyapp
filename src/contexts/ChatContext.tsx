@@ -257,6 +257,169 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // ── Import file via two-pass extraction ──────────────────────────────────
+
+  const handleFileImport = useCallback(
+    async (files: File[], text: string) => {
+      const hooks = hooksRef.current;
+      if (!hooks?.effectiveUserId) return;
+
+      const userId = hooks.effectiveUserId;
+
+      // Add user message
+      const userMsg: ChatMessage = {
+        id: generateId(),
+        role: 'user',
+        content: text || `Import ${files.map((f) => f.name).join(', ')}`,
+        timestamp: new Date().toISOString(),
+        fileInfo: { name: files.map((f) => f.name).join(', '), type: files[0].type, size: files.reduce((s, f) => s + f.size, 0) },
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      playSend();
+      setIsLoading(true);
+
+      try {
+        // Process each file through the two-pass pipeline
+        let totalImported = 0;
+
+        for (const file of files) {
+          const parsed = await processFile(file);
+
+          // Status update
+          setMessages((prev) => [...prev, {
+            id: generateId(),
+            role: 'assistant',
+            content: `Analyzing ${file.name}...`,
+            timestamp: new Date().toISOString(),
+          }]);
+
+          // Pass 1: Extract raw transactions
+          const extractRes = await fetch('/api/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'extract',
+              fileContent: parsed.content,
+              fileType: parsed.type,
+              fileName: parsed.name,
+            }),
+          });
+
+          let extractData;
+          try { extractData = await extractRes.json(); } catch {
+            throw new Error(`Failed to analyze ${file.name}`);
+          }
+          if (!extractRes.ok) throw new Error(extractData.error ?? 'Extraction failed');
+
+          const extracted = extractData.transactions;
+          if (!extracted || extracted.length === 0) {
+            setMessages((prev) => [...prev, {
+              id: generateId(),
+              role: 'assistant',
+              content: `No transactions found in ${file.name}.`,
+              timestamp: new Date().toISOString(),
+            }]);
+            continue;
+          }
+
+          // Status update
+          setMessages((prev) => {
+            // Replace the "Analyzing..." message with progress
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              id: generateId(),
+              role: 'assistant',
+              content: `Found ${extracted.length} transactions in ${file.name}. Categorizing...`,
+              timestamp: new Date().toISOString(),
+            };
+            return updated;
+          });
+
+          // Pass 2: Categorize
+          const categories = hooks.budgetMonth?.categories ?? [];
+          const catRes = await fetch('/api/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'categorize',
+              transactions: extracted,
+              categories: categories.map((c) => ({ name: c.name, type: c.type })),
+              currency: hooks.currency,
+            }),
+          });
+
+          let catData;
+          try { catData = await catRes.json(); } catch {
+            throw new Error(`Failed to categorize ${file.name}`);
+          }
+          if (!catRes.ok) throw new Error(catData.error ?? 'Categorization failed');
+
+          const categorized = catData.transactions;
+
+          // Import all transactions directly to Firestore
+          for (const tx of categorized) {
+            const txMonth = tx.date ? tx.date.slice(0, 7) : hooks.month;
+            const targetBm = await getBudgetMonth(userId, txMonth);
+
+            // Find or create category in target month
+            let cat = targetBm.categories.find(
+              (c) => c.name.toLowerCase() === tx.categoryName?.toLowerCase(),
+            );
+            if (!cat) {
+              const created = await fsAddCategory(userId, txMonth, {
+                name: tx.categoryName,
+                type: tx.type ?? 'expense',
+                planned: 0,
+              });
+              cat = created;
+            }
+
+            await fsAddTransaction(userId, txMonth, {
+              categoryId: cat.id,
+              categoryName: tx.categoryName,
+              type: tx.type ?? 'expense',
+              amount: Math.abs(tx.amount),
+              date: tx.date,
+              note: tx.note ?? tx.description ?? '',
+              isRecurring: false,
+            });
+
+            totalImported++;
+          }
+        }
+
+        // Final success message
+        const successMsg: ChatMessage = {
+          id: generateId(),
+          role: 'assistant',
+          content: `Done! Successfully imported ${totalImported} transaction${totalImported !== 1 ? 's' : ''}. Check your budget to see them.`,
+          timestamp: new Date().toISOString(),
+          actions: [{
+            id: generateId(),
+            type: 'import_transactions',
+            params: { count: totalImported },
+            status: 'executed',
+          }],
+        };
+        setMessages((prev) => [...prev, successMsg]);
+        playBigSuccess();
+
+      } catch (err: any) {
+        console.error('[ChatContext] Import error:', err);
+        setMessages((prev) => [...prev, {
+          id: generateId(),
+          role: 'assistant',
+          content: `Import failed: ${err.message}`,
+          timestamp: new Date().toISOString(),
+        }]);
+        playError();
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [messages],
+  );
+
   // ── Send a message ───────────────────────────────────────────────────────
 
   const sendMessage = useCallback(
@@ -265,46 +428,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!text.trim() && (!files || files.length === 0)) return;
       if (!hooks?.effectiveUserId) return;
 
-      // Process files
-      let parsedFiles: FileAttachment[] | undefined;
-      let fileInfo: ChatMessage['fileInfo'] | undefined;
-
+      // If files are attached, use the dedicated import pipeline
       if (files && files.length > 0) {
-        const totalSize = files.reduce((s, f) => s + f.size, 0);
-        const MAX_SIZE = 3 * 1024 * 1024;
-
-        if (totalSize > MAX_SIZE) {
-          const errorMsg: ChatMessage = {
-            id: generateId(),
-            role: 'assistant',
-            content: `Those files are too large (${(totalSize / 1024 / 1024).toFixed(1)}MB total). Please upload files under 3MB total, or upload them one at a time.`,
-            timestamp: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, {
-            id: generateId(),
-            role: 'user',
-            content: text || `Tried to upload: ${files.map((f) => f.name).join(', ')}`,
-            timestamp: new Date().toISOString(),
-            fileInfo: { name: files.map((f) => f.name).join(', '), type: files[0].type, size: totalSize },
-          }, errorMsg]);
-          return;
-        }
-
-        fileInfo = { name: files.map((f) => f.name).join(', '), type: files[0].type, size: totalSize };
-        try {
-          parsedFiles = await Promise.all(files.map(processFile));
-        } catch {
-          parsedFiles = undefined;
-        }
+        await handleFileImport(files, text);
+        return;
       }
 
-      // Add user message
+      // Text-only message
       const userMsg: ChatMessage = {
         id: generateId(),
         role: 'user',
-        content: text || `Uploaded ${files?.length ?? 0} file(s): ${files?.map((f) => f.name).join(', ')}`,
+        content: text,
         timestamp: new Date().toISOString(),
-        fileInfo,
       };
       setMessages((prev) => [...prev, userMsg]);
       playSend();
@@ -338,7 +473,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const requestBody: ChatRequest = {
           messages: history,
           budgetContext: { month, categories, recentTransactions, currency },
-          files: parsedFiles,
         };
 
         const res = await fetch('/api/chat', {
