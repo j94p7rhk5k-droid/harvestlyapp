@@ -61,9 +61,17 @@ export default function ProgressRing({
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animatedPct / 100) * circumference;
+  const remainingOffset = circumference - (animatedPct / 100) * circumference;
   const strokeColor = color ?? getStrokeColor(percentage);
   const glowColor = color ? `${color}40` : getGlowColor(percentage);
+
+  // Dimmed version of the stroke color for spent portion
+  const dimColor = color
+    ? `${color}20`
+    : percentage <= 0 ? 'rgba(239,68,68,0.15)'
+    : percentage <= 20 ? 'rgba(245,158,11,0.15)'
+    : percentage <= 40 ? 'rgba(234,179,8,0.15)'
+    : 'rgba(34,197,94,0.15)';
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
@@ -73,16 +81,16 @@ export default function ProgressRing({
         viewBox={`0 0 ${size} ${size}`}
         style={{ transform: 'rotate(-90deg) scaleX(-1)' }}
       >
-        {/* Background track (spent portion) */}
+        {/* Full ring in dimmed color (spent = faded) */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(16, 42, 67, 0.6)"
+          stroke={dimColor}
           strokeWidth={strokeWidth}
         />
-        {/* Green arc — remaining budget, shrinks as you spend */}
+        {/* Bright arc — remaining budget */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -92,10 +100,10 @@ export default function ProgressRing({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={offset}
+          strokeDashoffset={remainingOffset}
           style={{
             transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            filter: `drop-shadow(0 0 6px ${glowColor})`,
+            filter: `drop-shadow(0 0 8px ${glowColor})`,
           }}
         />
       </svg>
