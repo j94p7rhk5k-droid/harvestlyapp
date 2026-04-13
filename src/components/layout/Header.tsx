@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import {
   Menu,
   Bell,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   ChevronDown,
   LogOut,
+  Settings,
   User,
   Users,
 } from 'lucide-react';
@@ -224,6 +226,14 @@ export default function Header({
                   </p>
                 </div>
                 <div className="py-1">
+                  <Link
+                    href="/settings"
+                    onClick={() => setAvatarOpen(false)}
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-navy-300 hover:text-white hover:bg-navy-800/60 transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
                   <button
                     onClick={handleSignOut}
                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-navy-300 hover:text-red-400 hover:bg-red-500/10 transition-colors"

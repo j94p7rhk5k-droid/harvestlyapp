@@ -9,7 +9,6 @@ import {
   Target,
   ArrowLeftRight,
   Repeat,
-  Settings,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,7 +21,6 @@ const NAV_ITEMS = [
   { label: 'Goals', href: '/goals', icon: Target },
   { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
   { label: 'Recurring', href: '/recurring', icon: Repeat },
-  { label: 'Settings', href: '/settings', icon: Settings },
 ] as const;
 
 // ─── Props ──────────────────────────────────────────────────────────────────
