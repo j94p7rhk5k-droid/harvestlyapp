@@ -127,14 +127,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           {/* Footer */}
-          <footer className="border-t border-navy-800/30 px-4 md:px-8 py-4 mt-auto">
-            <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-2">
-              <p className="text-[10px] text-navy-600">
-                &copy; {new Date().getFullYear()} Harvestly
-              </p>
-              <p className="text-[11px] text-navy-600 italic">
+          <footer className="border-t border-navy-800/50 px-4 md:px-8 py-4 mt-auto">
+            <div className="mx-auto max-w-7xl text-center space-y-1.5">
+              <p className="text-[11px] text-navy-500 italic">
                 "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up."
                 <span className="not-italic ml-1">— Galatians 6:9</span>
+              </p>
+              <p className="text-[10px] text-navy-600">
+                &copy; {new Date().getFullYear()} Harvestly. All rights reserved.
               </p>
             </div>
           </footer>
