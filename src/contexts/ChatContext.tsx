@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useRef, useCallback, useEffect, ty
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
-import { playSend, playReceive, playSuccess, playError, playOpen, playClose } from '@/lib/sounds';
+import { playSend, playReceive, playSuccess, playBigSuccess, playError, playOpen, playClose } from '@/lib/sounds';
 import { useAuth } from './AuthContext';
 import {
   addTransaction as fsAddTransaction,
@@ -388,9 +388,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           actions: executedActions.length > 0 ? executedActions : undefined,
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        // Play success sound if actions executed, receive sound otherwise
+        // Play sound based on what happened
         if (executedActions.length > 0 && executedActions.every((a) => a.status === 'executed')) {
-          playSuccess();
+          const hasImport = executedActions.some((a) => a.type === 'import_transactions');
+          if (hasImport) {
+            playBigSuccess(); // Coin cascade for bulk imports
+          } else {
+            playSuccess(); // Cha-ching for single actions
+          }
         } else {
           playReceive();
         }
