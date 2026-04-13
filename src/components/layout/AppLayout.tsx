@@ -92,7 +92,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             {/* Pending household invite banner */}
             {pendingInvites.length > 0 && (
               <Link
-                href="/settings"
+                href="/settings#household"
                 className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/15 transition-colors"
               >
                 <Users className="w-5 h-5 text-violet-400 flex-shrink-0" />

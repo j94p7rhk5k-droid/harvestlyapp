@@ -104,6 +104,27 @@ export function useHousehold() {
         throw new Error('Cannot invite yourself');
       }
 
+      // Check if the other person already sent US an invite — if so, auto-accept it
+      if (pendingInvites.length > 0) {
+        const matchingInvite = pendingInvites.find(
+          (inv) => inv.fromEmail.toLowerCase() === normalizedEmail,
+        );
+        if (matchingInvite) {
+          await acceptHouseholdInvite(matchingInvite, user.uid);
+          return;
+        }
+      }
+
+      // Check if we already sent them an invite
+      if (sentInvites.length > 0) {
+        const existingInvite = sentInvites.find(
+          (inv) => inv.toEmail.toLowerCase() === normalizedEmail,
+        );
+        if (existingInvite) {
+          throw new Error('You already sent an invite to this email');
+        }
+      }
+
       await createHouseholdInvite({
         fromUid: user.uid,
         fromEmail: user.email ?? '',
@@ -113,7 +134,7 @@ export function useHousehold() {
         createdAt: new Date().toISOString(),
       });
     },
-    [user, userProfile, isInHousehold],
+    [user, userProfile, isInHousehold, pendingInvites, sentInvites],
   );
 
   const acceptInvite = useCallback(

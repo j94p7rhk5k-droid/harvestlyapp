@@ -293,7 +293,7 @@ export default function SettingsPage() {
           </motion.div>
 
           {/* ── Household Section ─────────────────────────────────────────── */}
-          <motion.div variants={itemVariants}>
+          <motion.div variants={itemVariants} id="household">
             <Card noHover>
               <div className="flex items-center gap-2 mb-5">
                 <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
