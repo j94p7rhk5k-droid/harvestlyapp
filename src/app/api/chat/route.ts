@@ -70,6 +70,26 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'clear_data',
+    description:
+      'Clear budget data. Use when the user asks to clear, reset, or start fresh. Can clear a specific month or all data.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['month', 'all'],
+          description: '"month" to clear a specific month, "all" to clear everything',
+        },
+        month: {
+          type: 'string',
+          description: 'The month to clear in YYYY-MM format. Required when scope is "month".',
+        },
+      },
+      required: ['scope'],
+    },
+  },
+  {
     name: 'update_category_budget',
     description: 'Update the planned budget amount for an existing category.',
     input_schema: {

@@ -14,7 +14,8 @@ export type ChatActionType =
   | 'add_transaction'
   | 'delete_transaction'
   | 'update_category_budget'
-  | 'import_transactions';
+  | 'import_transactions'
+  | 'clear_data';
 
 export type ChatActionStatus = 'pending' | 'executed' | 'failed';
 

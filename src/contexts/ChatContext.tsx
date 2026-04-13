@@ -8,6 +8,8 @@ import {
   addTransaction as fsAddTransaction,
   addCategory as fsAddCategory,
   getBudgetMonth,
+  clearBudgetMonth,
+  clearAllBudgetData,
 } from '@/lib/firestore';
 
 function generateId() {
@@ -146,6 +148,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         case 'update_category_budget': {
           const { categoryId, planned } = action.params;
           await updateCategory(categoryId, { planned });
+          break;
+        }
+        case 'clear_data': {
+          const { scope, month } = action.params;
+          const userId = hooks.effectiveUserId!;
+          if (scope === 'all') {
+            await clearAllBudgetData(userId);
+          } else if (scope === 'month' && month) {
+            await clearBudgetMonth(userId, month);
+          }
           break;
         }
         case 'import_transactions': {

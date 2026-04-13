@@ -16,8 +16,10 @@ import {
   X,
   Check,
   LogOut,
+  Eraser,
 } from 'lucide-react';
 import { doc, deleteDoc } from 'firebase/firestore';
+import { clearBudgetMonth, clearAllBudgetData } from '@/lib/firestore';
 import { deleteUser } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,6 +109,10 @@ export default function SettingsPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
+  const [clearAllModalOpen, setClearAllModalOpen] = useState(false);
+  const [clearMonthModalOpen, setClearMonthModalOpen] = useState(false);
+  const [clearMonthValue, setClearMonthValue] = useState('');
+  const [clearing, setClearing] = useState(false);
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
     () => new Set(DEFAULT_CATEGORIES.map((c) => c.name)),
   );
@@ -172,6 +178,34 @@ export default function SettingsPage() {
       return next;
     });
   }, []);
+
+  // ── Clear data handlers ────────────────────────────────────────────────
+  const handleClearAll = useCallback(async () => {
+    if (!user) return;
+    setClearing(true);
+    try {
+      await clearAllBudgetData(user.uid);
+    } catch (err) {
+      console.error('Failed to clear data:', err);
+    } finally {
+      setClearing(false);
+      setClearAllModalOpen(false);
+    }
+  }, [user]);
+
+  const handleClearMonth = useCallback(async () => {
+    if (!user || !clearMonthValue) return;
+    setClearing(true);
+    try {
+      await clearBudgetMonth(user.uid, clearMonthValue);
+    } catch (err) {
+      console.error('Failed to clear month:', err);
+    } finally {
+      setClearing(false);
+      setClearMonthModalOpen(false);
+      setClearMonthValue('');
+    }
+  }, [user, clearMonthValue]);
 
   // ── Export data placeholder ────────────────────────────────────────────
   const handleExport = useCallback(() => {
@@ -541,6 +575,39 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
+          {/* ── Clear Data Section ────────────────────────────────────────── */}
+          <motion.div variants={itemVariants}>
+            <Card noHover className="border-orange-500/20">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <Eraser className="w-4 h-4 text-orange-400" />
+                </div>
+                <h2 className="text-base font-semibold text-orange-400">Clear Data</h2>
+              </div>
+
+              <p className="text-xs text-navy-400 mb-4">
+                Remove budget data without deleting your account. Choose to clear a specific month or all data.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="secondary"
+                  iconLeft={<Eraser className="w-4 h-4" />}
+                  onClick={() => setClearMonthModalOpen(true)}
+                >
+                  Clear a Month
+                </Button>
+                <Button
+                  variant="danger"
+                  iconLeft={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setClearAllModalOpen(true)}
+                >
+                  Clear All Data
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+
           {/* ── Danger Zone ────────────────────────────────────────────────── */}
           <motion.div variants={itemVariants}>
             <Card noHover className="border-red-500/20">
@@ -597,6 +664,64 @@ export default function SettingsPage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* ── Clear Month Modal ────────────────────────────────────────────── */}
+      <Modal
+        open={clearMonthModalOpen}
+        onClose={() => setClearMonthModalOpen(false)}
+        title="Clear Month Data"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setClearMonthModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleClearMonth} loading={clearing} disabled={!clearMonthValue}>
+              Clear Month
+            </Button>
+          </>
+        }
+      >
+        <div className="py-2">
+          <p className="text-sm text-navy-400 mb-4">
+            Select a month to clear all its categories and transactions. This cannot be undone.
+          </p>
+          <input
+            type="month"
+            value={clearMonthValue}
+            onChange={(e) => setClearMonthValue(e.target.value)}
+            className="w-full bg-navy-800/50 border border-navy-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500/50"
+          />
+        </div>
+      </Modal>
+
+      {/* ── Clear All Data Modal ──────────────────────────────────────────── */}
+      <Modal
+        open={clearAllModalOpen}
+        onClose={() => setClearAllModalOpen(false)}
+        title="Clear All Data"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setClearAllModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleClearAll} loading={clearing}>
+              Yes, Clear Everything
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-4">
+            <Eraser className="w-7 h-7 text-orange-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Clear all budget data?
+          </h3>
+          <p className="text-sm text-navy-400 max-w-sm leading-relaxed">
+            This will permanently delete all your budget months, categories, transactions, and goals. Your account and settings will remain. This cannot be undone.
+          </p>
+        </div>
+      </Modal>
 
       {/* ── Leave Household Modal ────────────────────────────────────────── */}
       <Modal

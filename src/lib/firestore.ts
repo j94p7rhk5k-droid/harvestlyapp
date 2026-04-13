@@ -460,3 +460,37 @@ export async function leaveHousehold(
 
   await batch.commit();
 }
+
+// ─── Clear Data ─────────────────────────────────────────────────────────────
+
+/**
+ * Clear a specific month's budget data (categories, transactions).
+ */
+export async function clearBudgetMonth(
+  userId: string,
+  month: string,
+): Promise<void> {
+  const ref = doc(db, 'users', userId, 'budgetMonths', month);
+  await deleteDoc(ref);
+}
+
+/**
+ * Clear ALL budget months, goals, and goal transactions for a user.
+ */
+export async function clearAllBudgetData(userId: string): Promise<void> {
+  const colRef = collection(db, 'users', userId, 'budgetMonths');
+  const snap = await getDocs(colRef);
+  const batch1 = writeBatch(db);
+  snap.docs.forEach((d) => batch1.delete(d.ref));
+  await batch1.commit();
+
+  const savingsSnap = await getDocs(collection(db, 'users', userId, 'savingsGoals'));
+  const debtSnap = await getDocs(collection(db, 'users', userId, 'debtGoals'));
+  const goalTxSnap = await getDocs(collection(db, 'users', userId, 'goalTransactions'));
+
+  const batch2 = writeBatch(db);
+  savingsSnap.docs.forEach((d) => batch2.delete(d.ref));
+  debtSnap.docs.forEach((d) => batch2.delete(d.ref));
+  goalTxSnap.docs.forEach((d) => batch2.delete(d.ref));
+  await batch2.commit();
+}
