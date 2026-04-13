@@ -29,8 +29,9 @@ export interface ChatAction {
 
 export interface FileAttachment {
   name: string;
-  type: 'csv' | 'pdf';
-  content: string; // text for CSV, base64 for PDF
+  type: 'csv' | 'pdf' | 'image';
+  content: string; // text for CSV, base64 for PDF/image
+  mediaType?: string; // e.g. 'image/png', 'application/pdf'
 }
 
 // API request/response types

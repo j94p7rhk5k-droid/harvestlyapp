@@ -420,6 +420,119 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [messages],
   );
 
+  // ── Handle image chat (screenshots, receipts) ───────────────────────────
+
+  const handleImageChat = useCallback(
+    async (images: File[], text: string) => {
+      const hooks = hooksRef.current;
+      if (!hooks?.effectiveUserId) return;
+
+      const userMsg: ChatMessage = {
+        id: generateId(),
+        role: 'user',
+        content: text || `Uploaded screenshot${images.length > 1 ? 's' : ''}`,
+        timestamp: new Date().toISOString(),
+        fileInfo: { name: images.map((f) => f.name).join(', '), type: 'image', size: images.reduce((s, f) => s + f.size, 0) },
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      playSend();
+      setIsLoading(true);
+
+      try {
+        // Convert images to base64
+        const parsedImages = await Promise.all(images.map(processFile));
+
+        // Build conversation history
+        const allMessages = [...messages, userMsg];
+        const history = allMessages
+          .filter((m) => m.id !== 'welcome')
+          .slice(-6)
+          .map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+
+        // Build budget context
+        const { month, currency, budgetMonth } = hooks;
+        const categories = budgetMonth?.categories ?? [];
+        const recentTransactions = (budgetMonth?.transactions ?? [])
+          .slice(-20)
+          .map((t) => ({
+            id: t.id,
+            categoryName: t.categoryName,
+            type: t.type,
+            amount: t.amount,
+            date: t.date,
+            note: t.note,
+          }));
+
+        const requestBody: ChatRequest = {
+          messages: history,
+          budgetContext: { month, categories, recentTransactions, currency },
+          files: parsedImages.map((p) => ({
+            name: p.name,
+            type: p.type as 'csv' | 'pdf',
+            content: p.content,
+            mediaType: p.mediaType,
+          })),
+        };
+
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        let data;
+        try { data = await res.json(); } catch {
+          throw new Error(`Server error (${res.status}). Please try again.`);
+        }
+        if (!res.ok) throw new Error(data.error ?? `API error: ${res.status}`);
+
+        // Execute actions
+        const executedActions: ChatAction[] = [];
+        if (data.actions?.length > 0) {
+          for (const action of data.actions) {
+            const chatAction: ChatAction = { id: action.id, type: action.type, params: action.params, status: 'pending' };
+            try {
+              await executeAction(chatAction);
+              chatAction.status = 'executed';
+            } catch (err: any) {
+              chatAction.status = 'failed';
+              chatAction.error = err.message;
+            }
+            executedActions.push(chatAction);
+          }
+        }
+
+        const assistantMsg: ChatMessage = {
+          id: generateId(),
+          role: 'assistant',
+          content: data.content || 'Done!',
+          timestamp: new Date().toISOString(),
+          actions: executedActions.length > 0 ? executedActions : undefined,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        if (executedActions.length > 0 && executedActions.every((a) => a.status === 'executed')) {
+          playSuccess();
+        } else {
+          playReceive();
+        }
+      } catch (err: any) {
+        console.error('[ChatContext] Image chat error:', err);
+        setMessages((prev) => [...prev, {
+          id: generateId(), role: 'assistant',
+          content: `Sorry, I ran into an issue: ${err.message}`,
+          timestamp: new Date().toISOString(),
+        }]);
+        playError();
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [messages, executeAction],
+  );
+
   // ── Send a message ───────────────────────────────────────────────────────
 
   const sendMessage = useCallback(
@@ -428,10 +541,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!text.trim() && (!files || files.length === 0)) return;
       if (!hooks?.effectiveUserId) return;
 
-      // If files are attached, use the dedicated import pipeline
+      // Route files: images go through chat API, documents through import pipeline
       if (files && files.length > 0) {
-        await handleFileImport(files, text);
-        return;
+        const hasImages = files.some((f) => f.type.startsWith('image/'));
+        const hasDocuments = files.some((f) => !f.type.startsWith('image/'));
+
+        if (hasImages && !hasDocuments) {
+          // Images only — send through chat API with image content blocks
+          await handleImageChat(files, text);
+          return;
+        }
+        if (hasDocuments) {
+          // Documents (PDF/CSV) — use import pipeline
+          await handleFileImport(files.filter((f) => !f.type.startsWith('image/')), text);
+          return;
+        }
       }
 
       // Text-only message

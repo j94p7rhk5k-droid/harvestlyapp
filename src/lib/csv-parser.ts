@@ -1,7 +1,8 @@
 export interface ParsedFile {
   name: string;
-  type: 'csv' | 'pdf';
-  content: string; // text for CSV, base64 for PDF
+  type: 'csv' | 'pdf' | 'image';
+  content: string; // text for CSV, base64 for PDF/image
+  mediaType?: string; // e.g. 'image/png', 'application/pdf'
 }
 
 /**
@@ -51,10 +52,16 @@ export function readFileAsBase64(file: File): Promise<string> {
  */
 export async function processFile(file: File): Promise<ParsedFile> {
   const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+  const isImage = file.type.startsWith('image/');
 
   if (isPdf) {
     const base64 = await readFileAsBase64(file);
-    return { name: file.name, type: 'pdf', content: base64 };
+    return { name: file.name, type: 'pdf', content: base64, mediaType: 'application/pdf' };
+  }
+
+  if (isImage) {
+    const base64 = await readFileAsBase64(file);
+    return { name: file.name, type: 'image', content: base64, mediaType: file.type };
   }
 
   // CSV / text

@@ -218,6 +218,15 @@ export async function POST(req: NextRequest) {
                 data: file.content,
               },
             } as any);
+          } else if (file.type === 'image' || file.mediaType?.startsWith('image/')) {
+            contentBlocks.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: (file as any).mediaType ?? 'image/png',
+                data: file.content,
+              },
+            } as any);
           } else {
             // CSV — include as text
             contentBlocks.push({
