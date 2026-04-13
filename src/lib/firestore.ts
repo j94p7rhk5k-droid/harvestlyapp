@@ -461,6 +461,35 @@ export async function leaveHousehold(
   await batch.commit();
 }
 
+// ─── Chat History ───────────────────────────────────────────────────────────
+
+import type { ChatMessage } from '@/types/chat';
+
+const MAX_CHAT_MESSAGES = 10;
+
+export async function saveChatHistory(
+  userId: string,
+  messages: ChatMessage[],
+): Promise<void> {
+  // Keep only the last N messages (exclude the welcome message)
+  const toSave = messages
+    .filter((m) => m.id !== 'welcome')
+    .slice(-MAX_CHAT_MESSAGES);
+  const ref = doc(db, 'users', userId, 'chatHistory', 'latest');
+  await setDoc(ref, { messages: toSave, updatedAt: new Date().toISOString() });
+}
+
+export async function loadChatHistory(
+  userId: string,
+): Promise<ChatMessage[]> {
+  const ref = doc(db, 'users', userId, 'chatHistory', 'latest');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    return (snap.data().messages ?? []) as ChatMessage[];
+  }
+  return [];
+}
+
 // ─── Clear Data ─────────────────────────────────────────────────────────────
 
 /**

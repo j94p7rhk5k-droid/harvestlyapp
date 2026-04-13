@@ -1,16 +1,19 @@
 'use client';
 
-import { createContext, useContext, useState, useRef, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
 import { playSend, playReceive, playSuccess, playError, playOpen, playClose } from '@/lib/sounds';
+import { useAuth } from './AuthContext';
 import {
   addTransaction as fsAddTransaction,
   addCategory as fsAddCategory,
   getBudgetMonth,
   clearBudgetMonth,
   clearAllBudgetData,
+  saveChatHistory,
+  loadChatHistory,
 } from '@/lib/firestore';
 
 function generateId() {
@@ -44,18 +47,19 @@ interface BudgetHooks {
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
 }
 
+const WELCOME_MSG: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content:
+    "Hey! I'm your Harvestly assistant. I can help you manage your budget — just tell me about your income and expenses, or drop a bank statement to import transactions. What can I help with?",
+  timestamp: new Date().toISOString(),
+};
+
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content:
-        "Hey! I'm your Harvestly assistant. I can help you manage your budget — just tell me about your income and expenses, or drop a bank statement to import transactions. What can I help with?",
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MSG]);
   const [isOpen, setIsOpenRaw] = useState(false);
   const setIsOpen = useCallback((open: boolean) => {
     setIsOpenRaw(open);
@@ -63,9 +67,47 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     else playClose();
   }, []);
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Store budget hooks in a ref so the context doesn't re-render when they change
   const hooksRef = useRef<BudgetHooks | null>(null);
+
+  // Load chat history from Firestore on login
+  useEffect(() => {
+    if (!user?.uid) {
+      setMessages([WELCOME_MSG]);
+      setHistoryLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+    loadChatHistory(user.uid).then((saved) => {
+      if (cancelled) return;
+      if (saved.length > 0) {
+        setMessages([WELCOME_MSG, ...saved]);
+      }
+      setHistoryLoaded(true);
+    }).catch(() => {
+      setHistoryLoaded(true);
+    });
+
+    return () => { cancelled = true; };
+  }, [user?.uid]);
+
+  // Save chat history to Firestore whenever messages change (after initial load)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!user?.uid || !historyLoaded) return;
+    // Debounce saves to avoid rapid writes
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      saveChatHistory(user.uid, messages).catch(() => {});
+    }, 1000);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [messages, user?.uid, historyLoaded]);
   const createdCategoriesRef = useRef<Map<string, string>>(new Map());
 
   const setBudgetHooks = useCallback((hooks: BudgetHooks) => {
