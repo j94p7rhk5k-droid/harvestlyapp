@@ -82,6 +82,8 @@ interface BudgetSectionProps {
   onUpdateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
   onDeleteCategory: (id: string) => Promise<void>;
   onAddTransaction: (categoryId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => Promise<void>;
+  onEditTransaction?: (transaction: Transaction) => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -95,6 +97,8 @@ export default function BudgetSection({
   onUpdateCategory,
   onDeleteCategory,
   onAddTransaction,
+  onDeleteTransaction,
+  onEditTransaction,
 }: BudgetSectionProps) {
   const [expanded, setExpanded] = useState(true);
   const config = SECTION_CONFIG[type];
@@ -208,6 +212,8 @@ export default function BudgetSection({
                         onUpdate={onUpdateCategory}
                         onDelete={onDeleteCategory}
                         onAddTransaction={onAddTransaction}
+                        onDeleteTransaction={onDeleteTransaction}
+                        onEditTransaction={onEditTransaction}
                       />
                     ))}
                   </AnimatePresence>

@@ -106,6 +106,7 @@ export default function BudgetPage() {
     updateCategory,
     deleteCategory,
     addTransaction,
+    deleteTransaction,
     updateBudgetPeriod,
     updateRollover,
   } = useHouseholdBudget();
@@ -377,6 +378,7 @@ export default function BudgetPage() {
                   onUpdateCategory={updateCategory}
                   onDeleteCategory={deleteCategory}
                   onAddTransaction={handleOpenAddTransaction}
+                  onDeleteTransaction={deleteTransaction}
                 />
               </motion.div>
             ))}

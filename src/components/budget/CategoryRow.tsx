@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Check,
   X,
+  Pencil,
   Banknote,
   Laptop,
   TrendingUp,
@@ -111,6 +112,8 @@ interface CategoryRowProps {
   onUpdate: (id: string, updates: Partial<Category>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onAddTransaction: (categoryId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => Promise<void>;
+  onEditTransaction?: (transaction: Transaction) => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -122,6 +125,8 @@ export default function CategoryRow({
   onUpdate,
   onDelete,
   onAddTransaction,
+  onDeleteTransaction,
+  onEditTransaction,
 }: CategoryRowProps) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(category.name);
@@ -366,7 +371,7 @@ export default function CategoryRow({
                   {categoryTransactions.map((t) => (
                     <div
                       key={t.id}
-                      className="flex items-center justify-between text-xs py-1.5 px-2 rounded-lg hover:bg-navy-800/30 transition-colors"
+                      className="group flex items-center justify-between text-xs py-1.5 px-2 rounded-lg hover:bg-navy-800/30 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="text-navy-500 flex-shrink-0 tabular-nums">
@@ -379,9 +384,29 @@ export default function CategoryRow({
                           <Repeat className="w-3 h-3 text-navy-500 flex-shrink-0" />
                         )}
                       </div>
-                      <span className="font-semibold text-white tabular-nums flex-shrink-0 ml-3">
-                        {formatCurrency(t.amount, currency)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-white tabular-nums flex-shrink-0">
+                          {formatCurrency(t.amount, currency)}
+                        </span>
+                        {onEditTransaction && (
+                          <button
+                            onClick={() => onEditTransaction(t)}
+                            className="p-1 rounded-md text-navy-600 hover:text-brand-400 hover:bg-navy-800/50 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                        {onDeleteTransaction && (
+                          <button
+                            onClick={() => onDeleteTransaction(t.id)}
+                            className="p-1 rounded-md text-navy-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -9,6 +9,7 @@ import {
   Sprout,
   Target,
   ArrowLeftRight,
+  Repeat,
   Settings,
   LogOut,
   X,
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { label: 'Budget', href: '/budget', icon: Sprout },
   { label: 'Goals', href: '/goals', icon: Target },
   { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
+  { label: 'Recurring', href: '/recurring', icon: Repeat },
   { label: 'Settings', href: '/settings', icon: Settings },
 ] as const;
 
