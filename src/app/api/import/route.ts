@@ -99,9 +99,17 @@ async function categorizeTransactions(
   existingCategories: { name: string; type: string }[],
   currency: string,
 ): Promise<CategorizedTransaction[]> {
-  const categoryList = existingCategories.length > 0
-    ? existingCategories.map((c) => `  - ${c.name} (${c.type})`).join('\n')
-    : '  (no existing categories)';
+  if (existingCategories.length === 0) {
+    throw new Error(
+      'No categories set up yet. Please add at least one category before importing a statement.',
+    );
+  }
+  const categoryList = existingCategories
+    .map((c) => `  - ${c.name} (${c.type})`)
+    .join('\n');
+  const allowedNamesLower = new Set(
+    existingCategories.map((c) => c.name.toLowerCase()),
+  );
 
   // Process in chunks of 100 to stay within token limits
   const CHUNK_SIZE = 100;
@@ -121,9 +129,9 @@ async function categorizeTransactions(
       max_tokens: 16000,
       messages: [{
         role: 'user',
-        content: `Categorize these ${chunk.length} transactions into budget categories.
+        content: `Categorize these ${chunk.length} transactions into the user's EXISTING budget categories. You MUST NOT invent new category names.
 
-Existing categories the user already has:
+The ONLY allowed category names are these — pick the best fit for each transaction from this list:
 ${categoryList}
 
 Transactions to categorize:
@@ -133,19 +141,24 @@ Return ONLY a JSON array. Each object must have:
 - "date": keep the original date (YYYY-MM-DD)
 - "description": keep the original description
 - "amount": keep the original amount (positive number)
-- "type": one of "income", "expense", "bill", "savings", "debt"
-  - Use "bill" for recurring charges (utilities, subscriptions, insurance, rent, phone)
-  - Use "income" for deposits, paychecks, refunds, credits
-  - Use "expense" for one-time purchases, food, shopping, gas, entertainment
-  - Use "debt" for loan payments, credit card payments
-  - Use "savings" for transfers to savings
-- "categoryName": match to an existing category name when possible. If no match, create a sensible short category name (e.g., "Groceries", "Gas", "Amazon", "Electric Bill")
+- "type": the type ("income" | "expense" | "bill" | "savings" | "debt") that matches the chosen category's type in the list above
+- "categoryName": MUST be one of the names from the list above, spelled exactly as written. Never invent a new name.
 - "note": brief description from the original transaction
 
-Rules:
-- Match existing categories by name when the transaction fits
-- Keep category names short and consistent
-- Return raw JSON array only, no markdown, no explanation`,
+Matching rules:
+- A merchant/description should map to the closest existing category by semantic meaning. Examples:
+  * "Netflix", "Spotify", "Disney+" → "Subscriptions" (if present)
+  * "Shell", "Chevron", "BP", "Exxon" → "Fuel" or "Transportation" (whichever exists)
+  * "Whole Foods", "Kroger", "Trader Joe's" → "Groceries"
+  * "Uber Eats", "DoorDash", "restaurant names" → "Dining Out"
+  * "Verizon", "AT&T" → "Phone"
+  * "Electric company", "PG&E" → "Electricity"
+  * "Rent payment", "mortgage" → "Rent/Mortgage"
+  * ACH/bank transfers labelled as salary/payroll → "Salary" (or "Other Income")
+  * Loan/credit card payments → "Credit Card", "Student Loan", "Car Payment" as appropriate
+- If a transaction genuinely doesn't fit ANY existing category, pick the closest broad-fit category within the correct type (e.g. an unknown expense goes to "Shopping" or "Other" if it exists; otherwise the nearest expense category).
+- Prefer preserving the merchant/payee as the "note" rather than leaking it into the category name.
+- Return raw JSON array only, no markdown, no explanation.`,
       }],
     });
 
@@ -158,7 +171,18 @@ Rules:
     const parsed = JSON.parse(jsonStr);
 
     if (Array.isArray(parsed)) {
-      allCategorized.push(...parsed);
+      // Drop anything whose categoryName wasn't in the allowed list — the
+      // client will apply its own smart-match fallback to place it somewhere
+      // safe. This prevents Claude from smuggling new category names past
+      // the system prompt.
+      for (const tx of parsed as CategorizedTransaction[]) {
+        if (tx && typeof tx.categoryName === 'string' && allowedNamesLower.has(tx.categoryName.toLowerCase())) {
+          allCategorized.push(tx);
+        } else if (tx) {
+          // Keep it but flag for client-side rescue matching.
+          allCategorized.push({ ...tx, categoryName: tx.categoryName ?? '' });
+        }
+      }
     }
   }
 

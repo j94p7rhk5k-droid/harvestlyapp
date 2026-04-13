@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useRef, useCallback, useEffect, ty
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
+import { findBestCategoryMatch } from '@/lib/category-match';
 import { fetchWithAuth } from '@/lib/api-client';
 import { playSend, playReceive, playSuccess, playBigSuccess, playError, playOpen, playClose } from '@/lib/sounds';
 import { useAuth } from './AuthContext';
@@ -224,41 +225,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             transactions = transactions ? [transactions] : [];
           }
           const userId = hooks.effectiveUserId!;
+          const skipped: string[] = [];
           for (const tx of transactions) {
             const txMonth = getMonthFromDate(tx.date);
             const targetMonth = txMonth || hooks.month;
 
-            // Ensure category exists in the target month
+            // Smart-match to an EXISTING category in the target month.
+            // Never auto-create.
             const targetBm = await getBudgetMonth(userId, targetMonth);
-            let resolvedId = '';
-            const catInTarget = targetBm.categories.find(
-              (c) => c.name.toLowerCase() === tx.categoryName?.toLowerCase(),
-            );
-            if (catInTarget) {
-              resolvedId = catInTarget.id;
-            } else {
-              // Check if we created it earlier in this batch
-              resolvedId = createdCategoriesRef.current.get(tx.categoryName?.toLowerCase()) ?? '';
-              if (!resolvedId) {
-                const created = await fsAddCategory(userId, targetMonth, {
-                  name: tx.categoryName,
-                  type: tx.type,
-                  planned: 0,
-                });
-                resolvedId = created.id;
-                createdCategoriesRef.current.set(tx.categoryName.toLowerCase(), created.id);
-              }
+            const match = findBestCategoryMatch(tx.categoryName, tx.type, targetBm.categories);
+            if (!match) {
+              skipped.push(`${tx.date} ${tx.note ?? tx.categoryName} ${tx.amount}`);
+              continue;
             }
 
             await fsAddTransaction(userId, targetMonth, {
-              categoryId: resolvedId,
-              categoryName: tx.categoryName,
-              type: tx.type,
+              categoryId: match.id,
+              categoryName: match.name,
+              type: match.type,
               amount: tx.amount,
               date: tx.date,
               note: tx.note ?? '',
               isRecurring: tx.isRecurring ?? false,
             });
+          }
+          if (skipped.length > 0) {
+            console.warn('[import_transactions] skipped (no category match):', skipped);
           }
           break;
         }
@@ -366,28 +358,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           const categorized = catData.transactions;
 
-          // Import all transactions directly to Firestore
+          // Import all transactions directly to Firestore. Smart-match each
+          // one to an EXISTING category — never auto-create new ones.
+          const skipped: Array<{ date: string; note: string; amount: number; suggested: string }> = [];
+
           for (const tx of categorized) {
             const txMonth = tx.date ? tx.date.slice(0, 7) : hooks.month;
             const targetBm = await getBudgetMonth(userId, txMonth);
 
-            // Find or create category in target month
-            let cat = targetBm.categories.find(
-              (c) => c.name.toLowerCase() === tx.categoryName?.toLowerCase(),
+            const match = findBestCategoryMatch(
+              tx.categoryName,
+              tx.type ?? 'expense',
+              targetBm.categories,
             );
-            if (!cat) {
-              const created = await fsAddCategory(userId, txMonth, {
-                name: tx.categoryName,
-                type: tx.type ?? 'expense',
-                planned: 0,
+            if (!match) {
+              skipped.push({
+                date: tx.date,
+                note: tx.note ?? tx.description ?? '',
+                amount: Math.abs(tx.amount),
+                suggested: tx.categoryName ?? '(none)',
               });
-              cat = created;
+              continue;
             }
 
             await fsAddTransaction(userId, txMonth, {
-              categoryId: cat.id,
-              categoryName: tx.categoryName,
-              type: tx.type ?? 'expense',
+              categoryId: match.id,
+              categoryName: match.name,
+              type: match.type,
               amount: Math.abs(tx.amount),
               date: tx.date,
               note: tx.note ?? tx.description ?? '',
@@ -395,6 +392,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             });
 
             totalImported++;
+          }
+
+          // If anything was skipped, surface it to the user so they can
+          // decide whether to add a category and re-import those rows.
+          if (skipped.length > 0) {
+            const preview = skipped
+              .slice(0, 5)
+              .map((s) => `• ${s.date} — ${s.note || s.suggested} (${s.amount})`)
+              .join('\n');
+            const more = skipped.length > 5 ? `\n…and ${skipped.length - 5} more.` : '';
+            setMessages((prev) => [...prev, {
+              id: generateId(),
+              role: 'assistant',
+              content:
+                `I couldn't fit ${skipped.length} transaction${skipped.length === 1 ? '' : 's'} into any existing category:\n${preview}${more}\n\nAdd a matching category on the Budget page and re-import if you want these included.`,
+              timestamp: new Date().toISOString(),
+            }]);
           }
         }
 
