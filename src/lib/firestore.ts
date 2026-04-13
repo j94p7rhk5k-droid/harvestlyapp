@@ -70,7 +70,10 @@ export async function getBudgetMonth(
   const snap = await getDoc(ref);
 
   if (snap.exists()) {
-    return snap.data() as BudgetMonth;
+    const bm = snap.data() as BudgetMonth;
+    // Sync recurring transactions from the most recent previous month
+    const synced = await syncRecurringTransactions(userId, month, bm);
+    return synced;
   }
 
   // Look for the most recent existing month to copy from
@@ -89,6 +92,92 @@ export async function getBudgetMonth(
 
   await setDoc(ref, created);
   return created;
+}
+
+/**
+ * Check for recurring transactions in previous months that are missing
+ * from this month, and add them. This handles the case where a user
+ * adds a recurring transaction in April, but May already existed.
+ */
+async function syncRecurringTransactions(
+  userId: string,
+  month: string,
+  bm: BudgetMonth,
+): Promise<BudgetMonth> {
+  // Find the most recent month BEFORE this one
+  const colRef = collection(db, 'users', userId, 'budgetMonths');
+  const q = query(
+    colRef,
+    where('month', '<', month),
+    orderBy('month', 'desc'),
+    firestoreLimit(1),
+  );
+  const prevSnap = await getDocs(q);
+  if (prevSnap.empty) return bm;
+
+  const prevMonth = prevSnap.docs[0].data() as BudgetMonth;
+  const prevRecurring = prevMonth.transactions.filter((tx) => tx.isRecurring);
+  if (prevRecurring.length === 0) return bm;
+
+  // Find recurring transactions from previous month that are missing here
+  // Match by categoryName + type + amount + isRecurring to detect duplicates
+  const existingKeys = new Set(
+    bm.transactions
+      .filter((tx) => tx.isRecurring)
+      .map((tx) => `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`),
+  );
+
+  const [yearStr, monthStr] = month.split('-');
+  const year = parseInt(yearStr, 10);
+  const mo = parseInt(monthStr, 10);
+  const lastDay = new Date(year, mo, 0).getDate();
+
+  let changed = false;
+
+  for (const tx of prevRecurring) {
+    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    if (existingKeys.has(key)) continue; // Already exists
+
+    // Ensure the category exists in this month
+    let cat = bm.categories.find(
+      (c) => c.name.toLowerCase() === tx.categoryName.toLowerCase(),
+    );
+    if (!cat) {
+      // Copy the category from previous month
+      const prevCat = prevMonth.categories.find((c) => c.id === tx.categoryId);
+      cat = {
+        id: generateId(),
+        name: tx.categoryName,
+        type: tx.type,
+        planned: prevCat?.planned ?? 0,
+        actual: 0,
+      };
+      bm.categories.push(cat);
+    }
+
+    // Adjust date to this month
+    const oldDay = tx.date.split('-')[2] ?? '01';
+    const day = Math.min(parseInt(oldDay, 10), lastDay);
+    const newDate = `${month}-${String(day).padStart(2, '0')}`;
+
+    bm.transactions.push({
+      ...tx,
+      id: generateId(),
+      categoryId: cat.id,
+      date: newDate,
+    });
+
+    existingKeys.add(key);
+    changed = true;
+  }
+
+  if (changed) {
+    // Recalculate actuals
+    recalcCategoryActuals(bm);
+    await saveBudgetMonth(bm);
+  }
+
+  return bm;
 }
 
 /**
