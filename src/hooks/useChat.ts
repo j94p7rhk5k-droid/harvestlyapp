@@ -155,7 +155,27 @@ export function useChat(options: UseChatOptions) {
       let fileInfo: ChatMessage['fileInfo'] | undefined;
 
       if (files && files.length > 0) {
-        fileInfo = { name: files.map((f) => f.name).join(', '), type: files[0].type, size: files.reduce((s, f) => s + f.size, 0) };
+        const totalSize = files.reduce((s, f) => s + f.size, 0);
+        const MAX_SIZE = 3 * 1024 * 1024; // 3MB total limit
+
+        if (totalSize > MAX_SIZE) {
+          const errorMsg: ChatMessage = {
+            id: generateId(),
+            role: 'assistant',
+            content: `Those files are too large (${(totalSize / 1024 / 1024).toFixed(1)}MB total). Please upload files under 3MB total, or upload them one at a time.`,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, {
+            id: generateId(),
+            role: 'user',
+            content: text || `Tried to upload: ${files.map((f) => f.name).join(', ')}`,
+            timestamp: new Date().toISOString(),
+            fileInfo: { name: files.map((f) => f.name).join(', '), type: files[0].type, size: totalSize },
+          }, errorMsg]);
+          return;
+        }
+
+        fileInfo = { name: files.map((f) => f.name).join(', '), type: files[0].type, size: totalSize };
         try {
           parsedFiles = await Promise.all(files.map(processFile));
         } catch {
@@ -206,7 +226,12 @@ export function useChat(options: UseChatOptions) {
           body: JSON.stringify(requestBody),
         });
 
-        const data = await res.json();
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(res.status === 413 ? 'Files are too large. Try uploading one at a time or smaller files.' : `Server error (${res.status}). Please try again.`);
+        }
 
         if (!res.ok) {
           throw new Error(data.error ?? data.details ?? `API error: ${res.status}`);

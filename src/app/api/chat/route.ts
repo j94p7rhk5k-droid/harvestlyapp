@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
 import type { ChatRequest } from '@/types/chat';
 
+// Increase body size limit for PDF uploads (default is 4.5MB)
+export const maxDuration = 60;
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
