@@ -101,7 +101,10 @@ export function useChat(options: UseChatOptions) {
             break;
           }
           case 'import_transactions': {
-            const { transactions } = action.params;
+            let { transactions } = action.params;
+            if (!Array.isArray(transactions)) {
+              transactions = transactions ? [transactions] : [];
+            }
             for (const tx of transactions) {
               let resolvedId = tx.categoryId;
               if (!resolvedId || resolvedId === '') {
