@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
 import { useHouseholdView } from '@/contexts/HouseholdViewContext';
 import { getMonthName, cn } from '@/lib/utils';
+import { playClick, playPop } from '@/lib/sounds';
 
 // ─── Route → page title mapping ────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
         {/* ── Center: Month selector ─────────────────────────────────────── */}
         <div className="hidden sm:flex items-center gap-2 bg-navy-900/60 rounded-xl px-1.5 py-1.5 border border-navy-800/50">
           <button
-            onClick={prevMonth}
+            onClick={() => { prevMonth(); playPop(); }}
             className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -98,7 +99,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
             {getMonthName(currentMonth)}
           </span>
           <button
-            onClick={nextMonth}
+            onClick={() => { nextMonth(); playPop(); }}
             className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
@@ -109,7 +110,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
         {isInHousehold && (
           <div className="hidden sm:flex items-center bg-navy-900/60 rounded-xl p-1 border border-navy-800/50">
             <button
-              onClick={() => setViewMode('personal')}
+              onClick={() => { setViewMode('personal'); playPop(); }}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
                 viewMode === 'personal'
@@ -121,7 +122,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
               My Budget
             </button>
             <button
-              onClick={() => setViewMode('household')}
+              onClick={() => { setViewMode('household'); playPop(); }}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
                 viewMode === 'household'
@@ -139,7 +140,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
         <div className="flex items-center gap-2">
           {/* Quick add transaction */}
           <button
-            onClick={onAddTransaction}
+            onClick={() => { onAddTransaction?.(); playClick(); }}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-all duration-200 shadow-glow hover:shadow-glow-lg btn-glow"
           >
             <Plus className="w-4 h-4" />

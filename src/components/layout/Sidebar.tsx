@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { playPop } from '@/lib/sounds';
 import {
   LayoutDashboard,
   Sprout,
@@ -90,7 +91,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               <Link
                 key={href}
                 href={href}
-                onClick={onClose}
+                onClick={() => { onClose(); playPop(); }}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
                   isActive

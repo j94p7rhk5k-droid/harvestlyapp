@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useRef, useCallback, type ReactNod
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
+import { playSend, playReceive, playSuccess, playError, playOpen, playClose } from '@/lib/sounds';
 import {
   addTransaction as fsAddTransaction,
   addCategory as fsAddCategory,
@@ -55,7 +56,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       timestamp: new Date().toISOString(),
     },
   ]);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpenRaw] = useState(false);
+  const setIsOpen = useCallback((open: boolean) => {
+    setIsOpenRaw(open);
+    if (open) playOpen();
+    else playClose();
+  }, []);
   const [isLoading, setIsLoading] = useState(false);
 
   // Store budget hooks in a ref so the context doesn't re-render when they change
@@ -259,6 +265,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         fileInfo,
       };
       setMessages((prev) => [...prev, userMsg]);
+      playSend();
       setIsLoading(true);
 
       try {
@@ -336,6 +343,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           actions: executedActions.length > 0 ? executedActions : undefined,
         };
         setMessages((prev) => [...prev, assistantMsg]);
+        // Play success sound if actions executed, receive sound otherwise
+        if (executedActions.length > 0 && executedActions.every((a) => a.status === 'executed')) {
+          playSuccess();
+        } else {
+          playReceive();
+        }
       } catch (err: any) {
         console.error('[ChatContext] Error:', err);
         const errorMsg: ChatMessage = {
@@ -345,6 +358,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);
+        playError();
       } finally {
         setIsLoading(false);
       }
