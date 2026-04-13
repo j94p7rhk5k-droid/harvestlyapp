@@ -11,16 +11,23 @@ import {
   Sprout,
   Shield,
   AlertTriangle,
+  Users,
+  Mail,
+  X,
+  Check,
+  LogOut,
 } from 'lucide-react';
 import { doc, deleteDoc } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useHousehold } from '@/hooks/useHousehold';
 import AppLayout from '@/components/layout/AppLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
+import Input from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 // ─── Animation variants ────────────────────────────────────────────────────
@@ -90,13 +97,45 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function SettingsPage() {
   const { user, userProfile, signOut } = useAuth();
+  const household = useHousehold();
   const [currency, setCurrency] = useState(userProfile?.currency ?? '$');
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSuccess, setInviteSuccess] = useState('');
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(
     () => new Set(DEFAULT_CATEGORIES.map((c) => c.name)),
   );
+
+  // ── Household handlers ────────────────────────────────────────────────
+  const handleSendInvite = useCallback(async () => {
+    if (!inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteError('');
+    setInviteSuccess('');
+    try {
+      await household.sendInvite(inviteEmail.trim());
+      setInviteSuccess(`Invite sent to ${inviteEmail.trim()}`);
+      setInviteEmail('');
+    } catch (err: any) {
+      setInviteError(err.message ?? 'Failed to send invite');
+    } finally {
+      setInviteLoading(false);
+    }
+  }, [inviteEmail, household]);
+
+  const handleLeaveHousehold = useCallback(async () => {
+    try {
+      await household.leaveHousehold();
+      setLeaveModalOpen(false);
+    } catch (err) {
+      console.error('Failed to leave household:', err);
+    }
+  }, [household]);
 
   // ── Currency handler ───────────────────────────────────────────────────
   const handleCurrencyChange = useCallback(
@@ -253,6 +292,170 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
+          {/* ── Household Section ─────────────────────────────────────────── */}
+          <motion.div variants={itemVariants}>
+            <Card noHover>
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Users className="w-4 h-4 text-violet-400" />
+                </div>
+                <h2 className="text-base font-semibold text-white">Household</h2>
+              </div>
+
+              {/* Pending invites received */}
+              {household.pendingInvites.length > 0 && (
+                <div className="mb-5 space-y-2">
+                  <p className="text-xs font-medium text-brand-400 uppercase tracking-wide mb-2">
+                    Pending Invites
+                  </p>
+                  {household.pendingInvites.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-brand-500/5 border border-brand-500/20"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          {invite.fromDisplayName}
+                        </p>
+                        <p className="text-xs text-navy-400 truncate">
+                          {invite.fromEmail} wants to share their budget with you
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => household.acceptInvite(invite)}
+                        className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                        title="Accept"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => household.declineInvite(invite)}
+                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                        title="Decline"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Already in a household */}
+              {household.isInHousehold ? (
+                <div>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-navy-800/40 border border-navy-700">
+                    {household.partnerProfile?.photoURL ? (
+                      <img
+                        src={household.partnerProfile.photoURL}
+                        alt={household.partnerProfile.displayName}
+                        className="w-10 h-10 rounded-xl object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center text-sm font-bold text-violet-300">
+                        {household.partnerProfile?.displayName?.charAt(0)?.toUpperCase() ?? '?'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {household.partnerProfile?.displayName ?? 'Partner'}
+                      </p>
+                      <p className="text-xs text-navy-400 truncate">
+                        {household.partnerProfile?.email}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-violet-500/10 text-violet-400">
+                      {household.isOwner ? 'You are owner' : 'You are partner'}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-navy-500 mt-3">
+                    {household.isOwner
+                      ? 'Your partner sees and edits the same budget data as you.'
+                      : 'You are viewing and editing your partner\'s budget data.'}
+                  </p>
+
+                  <Button
+                    variant="ghost"
+                    className="mt-3 text-red-400 hover:text-red-300"
+                    iconLeft={<LogOut className="w-4 h-4" />}
+                    onClick={() => setLeaveModalOpen(true)}
+                  >
+                    Leave Household
+                  </Button>
+                </div>
+              ) : (
+                /* Not in a household — show invite form */
+                <div>
+                  <p className="text-xs text-navy-400 mb-4">
+                    Share your budget with a partner. They'll be able to view and edit the same budget,
+                    transactions, and goals — perfect for managing household finances together.
+                  </p>
+
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        type="email"
+                        placeholder="Partner's email address"
+                        value={inviteEmail}
+                        onChange={(e) => {
+                          setInviteEmail(e.target.value);
+                          setInviteError('');
+                          setInviteSuccess('');
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSendInvite}
+                      loading={inviteLoading}
+                      iconLeft={<Mail className="w-4 h-4" />}
+                    >
+                      Invite
+                    </Button>
+                  </div>
+
+                  {inviteError && (
+                    <p className="text-xs text-red-400 mt-2">{inviteError}</p>
+                  )}
+                  {inviteSuccess && (
+                    <p className="text-xs text-emerald-400 mt-2">{inviteSuccess}</p>
+                  )}
+
+                  {/* Sent invites */}
+                  {household.sentInvites.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-xs font-medium text-navy-500 uppercase tracking-wide">
+                        Sent Invites
+                      </p>
+                      {household.sentInvites.map((invite) => (
+                        <div
+                          key={invite.id}
+                          className="flex items-center gap-3 p-2.5 rounded-xl bg-navy-800/30 border border-navy-800"
+                        >
+                          <Mail className="w-3.5 h-3.5 text-navy-500 flex-shrink-0" />
+                          <span className="text-sm text-navy-300 flex-1 truncate">
+                            {invite.toEmail}
+                          </span>
+                          <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                            Pending
+                          </span>
+                          <button
+                            onClick={() => household.cancelInvite(invite)}
+                            className="p-1 rounded-lg text-navy-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            title="Cancel invite"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
           {/* ── Default Categories Section ──────────────────────────────────── */}
           <motion.div variants={itemVariants}>
             <Card noHover>
@@ -394,6 +597,37 @@ export default function SettingsPage() {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* ── Leave Household Modal ────────────────────────────────────────── */}
+      <Modal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        title="Leave Household"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setLeaveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleLeaveHousehold}>
+              Yes, Leave Household
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center py-2">
+          <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
+            <Users className="w-7 h-7 text-violet-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Leave this household?
+          </h3>
+          <p className="text-sm text-navy-400 max-w-sm leading-relaxed">
+            {household.isOwner
+              ? 'Your partner will no longer be able to see or edit your budget data. No data will be deleted.'
+              : 'You will return to your own budget data. The owner\'s data will remain unchanged.'}
+          </p>
+        </div>
+      </Modal>
 
       {/* ── Delete Account Modal ──────────────────────────────────────────── */}
       <Modal

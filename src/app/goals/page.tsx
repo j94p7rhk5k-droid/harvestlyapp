@@ -71,7 +71,7 @@ function GoalsSkeleton() {
 // ─── Main page component ────────────────────────────────────────────────────
 
 export default function GoalsPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, effectiveUserId } = useAuth();
   const {
     savingsGoals,
     debtGoals,
@@ -84,7 +84,7 @@ export default function GoalsPage() {
     deleteDebtGoal,
     addGoalTransaction,
     getGoalTransactions,
-  } = useGoals(user?.uid);
+  } = useGoals(effectiveUserId);
 
   const currency = userProfile?.currency ?? '$';
 
@@ -418,7 +418,7 @@ export default function GoalsPage() {
         onSaveDebt={handleSaveDebt}
         onUpdateSavings={updateSavingsGoal}
         onUpdateDebt={updateDebtGoal}
-        userId={user?.uid ?? ''}
+        userId={effectiveUserId ?? ''}
         defaultTab={goalModalTab}
         editingSavingsGoal={editingSavings}
         editingDebtGoal={editingDebt}

@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import {
@@ -14,7 +15,7 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
 import type { UserProfile } from '@/types';
 
@@ -23,6 +24,8 @@ import type { UserProfile } from '@/types';
 interface AuthContextValue {
   user: User | null;
   userProfile: UserProfile | null;
+  /** The uid to use for all data reads/writes (owner's uid when in a household) */
+  effectiveUserId: string | undefined;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -37,44 +40,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch or create the Firestore user profile for a given Firebase user.
-  const syncProfile = useCallback(async (firebaseUser: User) => {
-    try {
-      const profileRef = doc(db, 'users', firebaseUser.uid);
-      const snap = await getDoc(profileRef);
+  // The uid to use for all data operations — partner uses owner's uid
+  const effectiveUserId = useMemo(
+    () => userProfile?.householdOwnerId ?? user?.uid ?? undefined,
+    [userProfile?.householdOwnerId, user?.uid],
+  );
 
-      if (snap.exists()) {
-        // Update mutable fields (display name / photo may change)
-        const existing = snap.data() as UserProfile;
-        const updated: UserProfile = {
-          ...existing,
-          displayName: firebaseUser.displayName ?? existing.displayName,
-          photoURL: firebaseUser.photoURL ?? existing.photoURL,
-          email: firebaseUser.email ?? existing.email,
-        };
-        await setDoc(profileRef, updated, { merge: true });
-        setUserProfile(updated);
-      } else {
-        // First-time user — create profile
-        const newProfile: UserProfile = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName: firebaseUser.displayName ?? '',
-          photoURL: firebaseUser.photoURL ?? '',
-          currency: '$',
-          createdAt: new Date().toISOString(),
-        };
-        await setDoc(profileRef, newProfile);
-        setUserProfile(newProfile);
-      }
-    } catch (err) {
-      console.error('[AuthContext] Failed to sync user profile:', err);
+  // Ensure a Firestore profile doc exists for the given Firebase user.
+  const ensureProfile = useCallback(async (firebaseUser: User) => {
+    const profileRef = doc(db, 'users', firebaseUser.uid);
+    const snap = await getDoc(profileRef);
+
+    if (snap.exists()) {
+      // Update mutable fields (display name / photo may change)
+      const existing = snap.data() as UserProfile;
+      const updated: UserProfile = {
+        ...existing,
+        displayName: firebaseUser.displayName ?? existing.displayName,
+        photoURL: firebaseUser.photoURL ?? existing.photoURL,
+        email: firebaseUser.email ?? existing.email,
+      };
+      await setDoc(profileRef, updated, { merge: true });
+    } else {
+      // First-time user — create profile
+      const newProfile: UserProfile = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        displayName: firebaseUser.displayName ?? '',
+        photoURL: firebaseUser.photoURL ?? '',
+        currency: '$',
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(profileRef, newProfile);
     }
   }, []);
 
   // Listen for auth state changes
   useEffect(() => {
     let settled = false;
+    let unsubProfile: (() => void) | null = null;
+
     const settle = () => {
       if (!settled) {
         settled = true;
@@ -82,50 +87,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const unsubscribe = onAuthStateChanged(
+    const unsubAuth = onAuthStateChanged(
       auth,
       (firebaseUser) => {
         setUser(firebaseUser);
 
+        // Tear down previous profile listener
+        if (unsubProfile) {
+          unsubProfile();
+          unsubProfile = null;
+        }
+
         if (firebaseUser) {
-          syncProfile(firebaseUser).catch(() => {}).finally(settle);
+          // Ensure profile exists, then start real-time listener
+          ensureProfile(firebaseUser)
+            .then(() => {
+              const profileRef = doc(db, 'users', firebaseUser.uid);
+              unsubProfile = onSnapshot(profileRef, (snap) => {
+                if (snap.exists()) {
+                  setUserProfile(snap.data() as UserProfile);
+                }
+                settle();
+              });
+            })
+            .catch(() => {
+              settle();
+            });
         } else {
           setUserProfile(null);
           settle();
         }
       },
       () => {
-        // Auth error — unblock UI anyway
         settle();
       },
     );
 
-    // Safety timeout — if Firebase never fires, unblock the UI
-    const timeout = setTimeout(settle, 2000);
+    // Safety timeout
+    const timeout = setTimeout(settle, 3000);
 
     return () => {
-      unsubscribe();
+      unsubAuth();
+      if (unsubProfile) unsubProfile();
       clearTimeout(timeout);
     };
-  }, [syncProfile]);
+  }, [ensureProfile]);
 
   // ── Public methods ───────────────────────────────────────────────────────
 
   const signInWithGoogle = useCallback(async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // Profile sync happens automatically via onAuthStateChanged,
-      // but we can also eagerly sync here for faster UX.
-      if (result.user) {
-        await syncProfile(result.user);
-      }
+      await signInWithPopup(auth, googleProvider);
+      // Profile sync happens automatically via onAuthStateChanged listener
     } catch (err: any) {
-      // Ignore popup-closed-by-user — it's not an error
       if (err?.code === 'auth/popup-closed-by-user') return;
       console.error('[AuthContext] Google sign-in failed:', err);
       throw err;
     }
-  }, [syncProfile]);
+  }, []);
 
   const signOut = useCallback(async () => {
     try {
@@ -142,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, userProfile, loading, signInWithGoogle, signOut }}
+      value={{ user, userProfile, effectiveUserId, loading, signInWithGoogle, signOut }}
     >
       {children}
     </AuthContext.Provider>

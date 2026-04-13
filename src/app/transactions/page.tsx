@@ -80,9 +80,9 @@ const CATEGORY_COLORS: Record<CategoryType, string> = {
 // ─── Main page ──────────────────────────────────────────────────────────────
 
 export default function TransactionsPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, loading, deleteTransaction } = useBudget(user?.uid, currentMonth);
+  const { budgetMonth, loading, deleteTransaction } = useBudget(effectiveUserId, currentMonth);
 
   const currency = userProfile?.currency ?? '$';
   const allTransactions = budgetMonth?.transactions ?? [];

@@ -103,6 +103,23 @@ export interface UserProfile {
   photoURL: string;
   currency: string;    // e.g. "$"
   createdAt: string;   // ISO timestamp
+  householdOwnerId?: string;   // set on partner — points to the owner's uid
+  householdPartnerId?: string; // set on owner — points to the partner's uid
+}
+
+// ─── Household Invite ───────────────────────────────────────────────────────
+
+export type InviteStatus = 'pending' | 'accepted' | 'declined';
+
+export interface HouseholdInvite {
+  id: string;
+  fromUid: string;
+  fromEmail: string;
+  fromDisplayName: string;
+  toEmail: string;
+  toUid?: string;
+  status: InviteStatus;
+  createdAt: string;
 }
 
 // ─── Dashboard Data (computed) ───────────────────────────────────────────────

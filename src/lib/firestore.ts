@@ -6,6 +6,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -13,6 +14,7 @@ import {
   onSnapshot,
   arrayUnion,
   arrayRemove,
+  writeBatch,
   type DocumentReference,
   type CollectionReference,
 } from 'firebase/firestore';
@@ -31,6 +33,7 @@ import type {
   NewSavingsGoal,
   NewDebtGoal,
   NewGoalTransaction,
+  HouseholdInvite,
 } from '@/types';
 import { generateId, getCurrentMonth } from './utils';
 
@@ -367,4 +370,93 @@ export function createDefaultBudgetMonth(
     categories,
     transactions: [],
   };
+}
+
+// ─── Household Invites ──────────────────────────────────────────────────────
+
+const householdInvitesCol = collection(db, 'householdInvites');
+
+export async function createHouseholdInvite(
+  invite: Omit<HouseholdInvite, 'id'>,
+): Promise<HouseholdInvite> {
+  const id = generateId();
+  const full: HouseholdInvite = { ...invite, id };
+  await setDoc(doc(db, 'householdInvites', id), full);
+  return full;
+}
+
+export async function getPendingInvitesForEmail(
+  email: string,
+): Promise<HouseholdInvite[]> {
+  const q = query(
+    householdInvitesCol,
+    where('toEmail', '==', email.toLowerCase()),
+    where('status', '==', 'pending'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as HouseholdInvite);
+}
+
+export async function getSentInvites(
+  fromUid: string,
+): Promise<HouseholdInvite[]> {
+  const q = query(
+    householdInvitesCol,
+    where('fromUid', '==', fromUid),
+    where('status', '==', 'pending'),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as HouseholdInvite);
+}
+
+export async function acceptHouseholdInvite(
+  invite: HouseholdInvite,
+  currentUid: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  // Update invite status
+  batch.update(doc(db, 'householdInvites', invite.id), {
+    status: 'accepted',
+    toUid: currentUid,
+  });
+
+  // Owner gets a pointer to the partner
+  batch.update(doc(db, 'users', invite.fromUid), {
+    householdPartnerId: currentUid,
+  });
+
+  // Partner gets a pointer to the owner
+  batch.update(doc(db, 'users', currentUid), {
+    householdOwnerId: invite.fromUid,
+  });
+
+  await batch.commit();
+}
+
+export async function declineHouseholdInvite(inviteId: string): Promise<void> {
+  await updateDoc(doc(db, 'householdInvites', inviteId), {
+    status: 'declined',
+  });
+}
+
+export async function cancelHouseholdInvite(inviteId: string): Promise<void> {
+  await deleteDoc(doc(db, 'householdInvites', inviteId));
+}
+
+export async function leaveHousehold(
+  ownerUid: string,
+  partnerUid: string,
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  batch.update(doc(db, 'users', ownerUid), {
+    householdPartnerId: deleteField(),
+  });
+
+  batch.update(doc(db, 'users', partnerUid), {
+    householdOwnerId: deleteField(),
+  });
+
+  await batch.commit();
 }

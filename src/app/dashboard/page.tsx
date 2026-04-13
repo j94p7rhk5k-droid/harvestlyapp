@@ -123,9 +123,9 @@ interface OverviewCardData {
 // ─── Main page component ────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, loading, addTransaction, addCategory } = useBudget(user?.uid, currentMonth);
+  const { budgetMonth, loading, addTransaction, addCategory } = useBudget(effectiveUserId, currentMonth);
   const currency = userProfile?.currency ?? '$';
 
   // ── Compute dashboard data ──────────────────────────────────────────────

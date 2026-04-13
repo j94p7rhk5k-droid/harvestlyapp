@@ -97,7 +97,7 @@ const SECTION_ORDER: CategoryType[] = ['income', 'expense', 'bill', 'savings', '
 // ─── Main page component ────────────────────────────────────────────────────
 
 export default function BudgetPage() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
   const {
     budgetMonth,
@@ -108,7 +108,7 @@ export default function BudgetPage() {
     addTransaction,
     updateBudgetPeriod,
     updateRollover,
-  } = useBudget(user?.uid, currentMonth);
+  } = useBudget(effectiveUserId, currentMonth);
 
   const currency = userProfile?.currency ?? '$';
 

@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
 import { useBudget } from '@/hooks/useBudget';
+import { useHousehold } from '@/hooks/useHousehold';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import AddTransactionModal from '@/components/budget/AddTransactionModal';
@@ -33,9 +36,10 @@ interface AppLayoutProps {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const { user, loading, userProfile } = useAuth();
+  const { user, loading, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, addTransaction } = useBudget(user?.uid, currentMonth);
+  const { budgetMonth, addTransaction } = useBudget(effectiveUserId, currentMonth);
+  const { pendingInvites } = useHousehold();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -72,6 +76,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-4 md:px-8 py-6 md:py-8">
+            {/* Pending household invite banner */}
+            {pendingInvites.length > 0 && (
+              <Link
+                href="/settings"
+                className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/15 transition-colors"
+              >
+                <Users className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                <p className="text-sm text-violet-300">
+                  <span className="font-medium">{pendingInvites[0].fromDisplayName}</span>{' '}
+                  invited you to share their budget.{' '}
+                  <span className="underline">View invite →</span>
+                </p>
+              </Link>
+            )}
             {children}
           </div>
         </main>
