@@ -10,7 +10,9 @@ export async function fetchWithAuth(
 ): Promise<Response> {
   const user = auth.currentUser;
   if (!user) throw new Error('Not signed in');
-  const token = await user.getIdToken();
+  // Force a fresh token — avoids sending a cached token whose verifier keys
+  // may have rotated or whose project binding changed.
+  const token = await user.getIdToken(true);
 
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);

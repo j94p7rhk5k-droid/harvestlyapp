@@ -31,6 +31,8 @@ function getAdminApp(): App {
 
   adminApp = initializeApp({
     credential: cert(parsed as Parameters<typeof cert>[0]),
+    // Explicit projectId so verifyIdToken's audience check is unambiguous.
+    projectId: typeof parsed.project_id === 'string' ? parsed.project_id : undefined,
   });
   return adminApp;
 }
@@ -56,8 +58,13 @@ export async function verifyAuth(req: NextRequest): Promise<AuthedUser> {
   try {
     const decoded = await getAuth(getAdminApp()).verifyIdToken(token);
     return { uid: decoded.uid, email: decoded.email ?? null };
-  } catch (err) {
-    throw new AuthError('Invalid or expired ID token', 401);
+  } catch (err: any) {
+    // Log the real reason server-side so we can diagnose mismatches.
+    console.error('[verifyAuth] verifyIdToken failed:', err?.code, err?.message);
+    throw new AuthError(
+      `Invalid or expired ID token${err?.code ? ` (${err.code})` : ''}`,
+      401,
+    );
   }
 }
 
