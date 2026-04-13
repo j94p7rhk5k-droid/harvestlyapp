@@ -19,6 +19,7 @@ import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatCurrency, cn } from '@/lib/utils';
 import type { Transaction, CategoryType, RecurrenceFrequency } from '@/types';
+import { getMonthlyOccurrences } from '@/lib/recurring';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -69,14 +70,23 @@ export default function RecurringPage() {
   const { budgetMonth, loading } = useHouseholdBudget();
   const currency = userProfile?.currency ?? '$';
 
-  // Get all recurring transactions grouped by type
+  // Get unique recurring transactions grouped by type (deduplicated)
   const recurringByType = useMemo(() => {
     if (!budgetMonth) return {} as Record<CategoryType, Transaction[]>;
 
     const recurring = budgetMonth.transactions.filter((t) => t.isRecurring);
-    const grouped: Record<string, Transaction[]> = {};
 
-    for (const tx of recurring) {
+    // Deduplicate: one entry per categoryName + type + amount
+    const seen = new Set<string>();
+    const unique = recurring.filter((tx) => {
+      const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const grouped: Record<string, Transaction[]> = {};
+    for (const tx of unique) {
       if (!grouped[tx.type]) grouped[tx.type] = [];
       grouped[tx.type].push(tx);
     }
@@ -84,15 +94,20 @@ export default function RecurringPage() {
     return grouped as Record<CategoryType, Transaction[]>;
   }, [budgetMonth]);
 
-  const totalRecurring = useMemo(() => {
-    return Object.values(recurringByType).flat().reduce((sum, tx) => sum + tx.amount, 0);
-  }, [recurringByType]);
-
+  // Monthly estimates based on frequency
   const totalRecurringIncome = useMemo(() => {
-    return (recurringByType.income ?? []).reduce((sum, tx) => sum + tx.amount, 0);
+    return (recurringByType.income ?? []).reduce(
+      (sum, tx) => sum + tx.amount * getMonthlyOccurrences(tx.recurrenceFrequency),
+      0,
+    );
   }, [recurringByType]);
 
-  const totalRecurringOut = totalRecurring - totalRecurringIncome;
+  const totalRecurringOut = useMemo(() => {
+    return Object.entries(recurringByType)
+      .filter(([type]) => type !== 'income')
+      .flatMap(([, txs]) => txs)
+      .reduce((sum, tx) => sum + tx.amount * getMonthlyOccurrences(tx.recurrenceFrequency), 0);
+  }, [recurringByType]);
   const typeOrder: CategoryType[] = ['income', 'bill', 'debt', 'expense', 'savings'];
 
   return (
@@ -206,6 +221,11 @@ export default function RecurringPage() {
                               <p className="text-sm font-semibold text-white tabular-nums">
                                 {formatCurrency(tx.amount, currency)}
                               </p>
+                              {(tx.recurrenceFrequency === 'biweekly' || tx.recurrenceFrequency === 'weekly') && (
+                                <p className="text-[10px] text-navy-400 tabular-nums">
+                                  ~{formatCurrency(tx.amount * getMonthlyOccurrences(tx.recurrenceFrequency), currency)}/mo
+                                </p>
+                              )}
                               <div className="flex items-center gap-1 justify-end mt-0.5">
                                 <Calendar className="w-3 h-3 text-navy-500" />
                                 <span className="text-[10px] text-navy-500">

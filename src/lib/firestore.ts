@@ -36,6 +36,7 @@ import type {
   HouseholdInvite,
 } from '@/types';
 import { generateId, getCurrentMonth } from './utils';
+import { getRecurringDatesInMonth } from './recurring';
 
 // ─── Collection helpers ──────────────────────────────────────────────────────
 
@@ -116,25 +117,28 @@ async function syncRecurringTransactions(
   if (prevSnap.empty) return bm;
 
   const prevMonth = prevSnap.docs[0].data() as BudgetMonth;
-  const prevRecurring = prevMonth.transactions.filter((tx) => tx.isRecurring);
-  if (prevRecurring.length === 0) return bm;
 
-  // Find recurring transactions from previous month that are missing here
-  // Match by categoryName + type + amount + isRecurring to detect duplicates
+  // Deduplicate: get one unique recurring item per categoryName+type+amount
+  const seen = new Set<string>();
+  const uniqueRecurring = prevMonth.transactions.filter((tx) => {
+    if (!tx.isRecurring) return false;
+    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (uniqueRecurring.length === 0) return bm;
+
+  // Track what already exists in this month
   const existingKeys = new Set(
     bm.transactions
       .filter((tx) => tx.isRecurring)
       .map((tx) => `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`),
   );
 
-  const [yearStr, monthStr] = month.split('-');
-  const year = parseInt(yearStr, 10);
-  const mo = parseInt(monthStr, 10);
-  const lastDay = new Date(year, mo, 0).getDate();
-
   let changed = false;
 
-  for (const tx of prevRecurring) {
+  for (const tx of uniqueRecurring) {
     const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
     if (existingKeys.has(key)) continue; // Already exists
 
@@ -143,7 +147,6 @@ async function syncRecurringTransactions(
       (c) => c.name.toLowerCase() === tx.categoryName.toLowerCase(),
     );
     if (!cat) {
-      // Copy the category from previous month
       const prevCat = prevMonth.categories.find((c) => c.id === tx.categoryId);
       cat = {
         id: generateId(),
@@ -155,24 +158,23 @@ async function syncRecurringTransactions(
       bm.categories.push(cat);
     }
 
-    // Adjust date to this month
-    const oldDay = tx.date.split('-')[2] ?? '01';
-    const day = Math.min(parseInt(oldDay, 10), lastDay);
-    const newDate = `${month}-${String(day).padStart(2, '0')}`;
+    // Calculate all occurrence dates for this month based on frequency
+    const dates = getRecurringDatesInMonth(tx.date, tx.recurrenceFrequency, month);
 
-    bm.transactions.push({
-      ...tx,
-      id: generateId(),
-      categoryId: cat.id,
-      date: newDate,
-    });
+    for (const date of dates) {
+      bm.transactions.push({
+        ...tx,
+        id: generateId(),
+        categoryId: cat.id,
+        date,
+      });
+    }
 
     existingKeys.add(key);
     changed = true;
   }
 
   if (changed) {
-    // Recalculate actuals
     recalcCategoryActuals(bm);
     await saveBudgetMonth(bm);
   }
@@ -213,24 +215,32 @@ function copyForwardBudgetMonth(
     });
   });
 
-  // Copy recurring transactions with updated dates and new category IDs
-  const transactions: Transaction[] = source.transactions
-    .filter((tx) => tx.isRecurring)
-    .map((tx) => {
-      const mapped = categoryIdMap.get(tx.categoryId);
-      // Keep same day of month, but in the new month
-      const oldDay = tx.date.split('-')[2] ?? '01';
-      const day = Math.min(parseInt(oldDay, 10), lastDay);
-      const newDate = `${month}-${String(day).padStart(2, '0')}`;
+  // Deduplicate recurring from source (one per categoryName+type+amount)
+  const seenRecurring = new Set<string>();
+  const uniqueRecurring = source.transactions.filter((tx) => {
+    if (!tx.isRecurring) return false;
+    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    if (seenRecurring.has(key)) return false;
+    seenRecurring.add(key);
+    return true;
+  });
 
-      return {
+  // Copy recurring transactions with correct frequency-based dates
+  const transactions: Transaction[] = [];
+  for (const tx of uniqueRecurring) {
+    const mapped = categoryIdMap.get(tx.categoryId);
+    const dates = getRecurringDatesInMonth(tx.date, tx.recurrenceFrequency, month);
+
+    for (const date of dates) {
+      transactions.push({
         ...tx,
         id: generateId(),
         categoryId: mapped?.newId ?? tx.categoryId,
         categoryName: mapped?.name ?? tx.categoryName,
-        date: newDate,
-      };
-    });
+        date,
+      });
+    }
+  }
 
   // Recalculate actuals from the copied recurring transactions
   const totals = new Map<string, number>();
