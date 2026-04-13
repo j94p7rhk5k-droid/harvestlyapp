@@ -61,7 +61,11 @@ export default function ProgressRing({
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (animatedPct / 100) * circumference;
+
+  // "spent" percentage = 100 - remaining
+  const spentPct = Math.min(100 - animatedPct, 100);
+  const spentOffset = circumference - (spentPct / 100) * circumference;
+
   const strokeColor = color ?? getStrokeColor(percentage);
   const glowColor = color ? `${color}40` : getGlowColor(percentage);
 
@@ -71,18 +75,9 @@ export default function ProgressRing({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="transform rotate-90 scale-x-100"
+        className="transform -rotate-90"
       >
-        {/* Background track */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(16, 42, 67, 0.6)"
-          strokeWidth={strokeWidth}
-        />
-        {/* Progress arc */}
+        {/* Full green track (represents total income) */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -90,12 +85,23 @@ export default function ProgressRing({
           fill="none"
           stroke={strokeColor}
           strokeWidth={strokeWidth}
+          style={{
+            filter: `drop-shadow(0 0 6px ${glowColor})`,
+          }}
+        />
+        {/* Dark arc drawn clockwise from top — represents spent amount */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(16, 42, 67, 0.85)"
+          strokeWidth={strokeWidth + 0.5}
           strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={offset}
+          strokeDashoffset={spentOffset}
           style={{
             transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            filter: `drop-shadow(0 0 6px ${glowColor})`,
           }}
         />
       </svg>
