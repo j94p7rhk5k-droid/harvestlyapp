@@ -6,7 +6,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-import type { Category, NewTransaction, CategoryType } from '@/types';
+import type { Category, NewTransaction, CategoryType, RecurrenceFrequency } from '@/types';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +34,7 @@ export default function AddTransactionModal({
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('monthly');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -50,6 +51,7 @@ export default function AddTransactionModal({
     setDate(new Date().toISOString().split('T')[0]);
     setNote('');
     setIsRecurring(false);
+    setRecurrenceFrequency('monthly');
     setError('');
   }, [preselectedCategoryId]);
 
@@ -83,6 +85,7 @@ export default function AddTransactionModal({
         date,
         note: note.trim() || undefined,
         isRecurring,
+        recurrenceFrequency: isRecurring ? recurrenceFrequency : undefined,
       });
       resetForm();
       onClose();
@@ -166,25 +169,54 @@ export default function AddTransactionModal({
         />
 
         {/* Recurring toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-navy-300">Recurring</p>
-            <p className="text-xs text-navy-500">Marks this as a recurring transaction</p>
-          </div>
-          <button
-            onClick={() => setIsRecurring(!isRecurring)}
-            className={cn(
-              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200',
-              isRecurring ? 'bg-brand-500' : 'bg-navy-700',
-            )}
-          >
-            <span
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-navy-300">Recurring</p>
+              <p className="text-xs text-navy-500">Marks this as a recurring transaction</p>
+            </div>
+            <button
+              onClick={() => setIsRecurring(!isRecurring)}
               className={cn(
-                'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200',
-                isRecurring ? 'translate-x-6' : 'translate-x-1',
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200',
+                isRecurring ? 'bg-brand-500' : 'bg-navy-700',
               )}
-            />
-          </button>
+            >
+              <span
+                className={cn(
+                  'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200',
+                  isRecurring ? 'translate-x-6' : 'translate-x-1',
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Frequency selector — shown when recurring is on */}
+          {isRecurring && (
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'biweekly', label: 'Bi-weekly' },
+                { value: 'monthly', label: 'Monthly' },
+                { value: 'quarterly', label: 'Quarterly' },
+                { value: 'yearly', label: 'Yearly' },
+              ] as { value: RecurrenceFrequency; label: string }[]).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRecurrenceFrequency(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                    recurrenceFrequency === opt.value
+                      ? 'bg-brand-500/15 border-brand-500/40 text-brand-400'
+                      : 'bg-navy-800/30 border-navy-700 text-navy-400 hover:text-navy-300 hover:border-navy-600',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Error message */}

@@ -21,6 +21,8 @@ export interface Category {
 
 // ─── Transaction ─────────────────────────────────────────────────────────────
 
+export type RecurrenceFrequency = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+
 export interface Transaction {
   id: string;
   categoryId: string;
@@ -30,6 +32,7 @@ export interface Transaction {
   date: string;        // ISO date
   note?: string;
   isRecurring: boolean;
+  recurrenceFrequency?: RecurrenceFrequency;
 }
 
 // ─── Budget Month ────────────────────────────────────────────────────────────
