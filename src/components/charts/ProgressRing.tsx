@@ -23,17 +23,18 @@ interface ProgressRingProps {
 
 // ─── Color logic ────────────────────────────────────────────────────────────
 
-function getStrokeColor(pct: number): string {
-  if (pct >= 100) return '#ef4444'; // red
-  if (pct >= 80) return '#f59e0b';  // amber
-  if (pct >= 60) return '#eab308';  // yellow
-  return '#22c55e';                  // green
+/** Color based on how much is remaining (high = green, low = red) */
+function getStrokeColor(remainingPct: number): string {
+  if (remainingPct <= 0) return '#ef4444';   // red — overspent
+  if (remainingPct <= 20) return '#f59e0b';  // amber — almost gone
+  if (remainingPct <= 40) return '#eab308';  // yellow — getting low
+  return '#22c55e';                           // green — plenty left
 }
 
-function getGlowColor(pct: number): string {
-  if (pct >= 100) return 'rgba(239,68,68,0.3)';
-  if (pct >= 80) return 'rgba(245,158,11,0.25)';
-  if (pct >= 60) return 'rgba(234,179,8,0.2)';
+function getGlowColor(remainingPct: number): string {
+  if (remainingPct <= 0) return 'rgba(239,68,68,0.3)';
+  if (remainingPct <= 20) return 'rgba(245,158,11,0.25)';
+  if (remainingPct <= 40) return 'rgba(234,179,8,0.2)';
   return 'rgba(34,197,94,0.25)';
 }
 

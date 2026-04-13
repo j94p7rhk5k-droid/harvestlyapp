@@ -383,14 +383,14 @@ export default function DashboardPage() {
                 <Card title="Left to Spend" className="h-full">
                   <div className="flex flex-col items-center py-4">
                     <ProgressRing
-                      percentage={leftToSpendPct}
+                      percentage={Math.max(0, 100 - leftToSpendPct)}
                       size={180}
                       strokeWidth={12}
                       centerValue={formatCurrency(
                         dashboard.leftToSpendActual + (budgetMonth?.rollover ?? 0),
                         currency,
                       )}
-                      centerLabel={`${leftToSpendPct}% allocated`}
+                      centerLabel={`${Math.max(0, 100 - leftToSpendPct)}% remaining`}
                     />
 
                     <div className="flex items-center gap-6 mt-6">
