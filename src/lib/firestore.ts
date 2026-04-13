@@ -118,11 +118,15 @@ async function syncRecurringTransactions(
 
   const prevMonth = prevSnap.docs[0].data() as BudgetMonth;
 
-  // Deduplicate: get one unique recurring item per categoryName+type+amount
+  // Deduplicate: one unique recurring item per category+type+amount+frequency.
+  // Frequency must be part of the key so weekly-rent and monthly-rent don't collapse.
+  const recurringKey = (tx: Transaction): string =>
+    `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}-${tx.recurrenceFrequency ?? 'monthly'}`;
+
   const seen = new Set<string>();
   const uniqueRecurring = prevMonth.transactions.filter((tx) => {
     if (!tx.isRecurring) return false;
-    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    const key = recurringKey(tx);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -131,15 +135,13 @@ async function syncRecurringTransactions(
 
   // Track what already exists in this month
   const existingKeys = new Set(
-    bm.transactions
-      .filter((tx) => tx.isRecurring)
-      .map((tx) => `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`),
+    bm.transactions.filter((tx) => tx.isRecurring).map(recurringKey),
   );
 
   let changed = false;
 
   for (const tx of uniqueRecurring) {
-    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    const key = recurringKey(tx);
     if (existingKeys.has(key)) continue; // Already exists
 
     // Ensure the category exists in this month
@@ -215,11 +217,11 @@ function copyForwardBudgetMonth(
     });
   });
 
-  // Deduplicate recurring from source (one per categoryName+type+amount)
+  // Deduplicate recurring from source (one per category+type+amount+frequency)
   const seenRecurring = new Set<string>();
   const uniqueRecurring = source.transactions.filter((tx) => {
     if (!tx.isRecurring) return false;
-    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+    const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}-${tx.recurrenceFrequency ?? 'monthly'}`;
     if (seenRecurring.has(key)) return false;
     seenRecurring.add(key);
     return true;
@@ -599,7 +601,16 @@ export async function getSentInvites(
 export async function acceptHouseholdInvite(
   invite: HouseholdInvite,
   currentUid: string,
+  currentEmail: string | null | undefined,
 ): Promise<void> {
+  // Guard: the accepting user must be the invite recipient.
+  if (!currentEmail || currentEmail.toLowerCase() !== invite.toEmail.toLowerCase()) {
+    throw new Error('This invite was not addressed to your account.');
+  }
+  if (invite.status !== 'pending') {
+    throw new Error('This invite is no longer pending.');
+  }
+
   const batch = writeBatch(db);
 
   // Update invite status

@@ -85,6 +85,12 @@ export default function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close dropdowns on route change
+  useEffect(() => {
+    setAvatarOpen(false);
+    setNotifOpen(false);
+  }, [pathname]);
+
   const handleSignOut = useCallback(async () => {
     setAvatarOpen(false);
     await signOut();
@@ -97,6 +103,7 @@ export default function Header({
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
+            aria-label="Toggle navigation menu"
             className="p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors lg:hidden"
           >
             <Menu className="w-5 h-5" />
@@ -110,15 +117,17 @@ export default function Header({
         <div className="hidden sm:flex items-center gap-2 bg-navy-900/60 rounded-xl px-1.5 py-1.5 border border-navy-800/50">
           <button
             onClick={() => { prevMonth(); playPop(); }}
+            aria-label="Previous month"
             className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-sm font-medium text-white min-w-[130px] text-center tabular-nums">
+          <span className="text-sm font-medium text-white min-w-[130px] text-center tabular-nums" aria-live="polite">
             {getMonthName(currentMonth)}
           </span>
           <button
             onClick={() => { nextMonth(); playPop(); }}
+            aria-label="Next month"
             className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
@@ -160,6 +169,7 @@ export default function Header({
           {/* Quick add transaction */}
           <button
             onClick={() => { onAddTransaction?.(); playClick(); }}
+            aria-label="Add transaction"
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-all duration-200 shadow-glow hover:shadow-glow-lg btn-glow"
           >
             <Plus className="w-4 h-4" />
@@ -170,6 +180,8 @@ export default function Header({
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => { setNotifOpen(!notifOpen); playClick(); }}
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+              aria-expanded={notifOpen}
               className="relative p-2 rounded-xl text-navy-400 hover:text-white hover:bg-navy-800/50 transition-colors"
             >
               <Bell className="w-5 h-5" />
@@ -192,6 +204,8 @@ export default function Header({
           <div className="relative" ref={avatarRef}>
             <button
               onClick={() => setAvatarOpen(!avatarOpen)}
+              aria-label="Account menu"
+              aria-expanded={avatarOpen}
               className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-navy-800/50 transition-colors"
             >
               {userProfile?.photoURL ? (

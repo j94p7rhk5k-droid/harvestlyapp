@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import {
   User,
   Globe,
-  Download,
   Trash2,
   Info,
   Sprout,
@@ -208,12 +207,6 @@ export default function SettingsPage() {
       setClearMonthValue('');
     }
   }, [user, clearMonthValue]);
-
-  // ── Export data placeholder ────────────────────────────────────────────
-  const handleExport = useCallback(() => {
-    // Placeholder — would export user data as JSON/CSV
-    alert('Export feature coming soon! Your data will be downloadable as CSV.');
-  }, []);
 
   // ── Delete account ─────────────────────────────────────────────────────
   const handleDeleteAccount = useCallback(async () => {
@@ -550,30 +543,6 @@ export default function SettingsPage() {
                   );
                 })}
               </div>
-            </Card>
-          </motion.div>
-
-          {/* ── Export Data Section ─────────────────────────────────────────── */}
-          <motion.div variants={itemVariants}>
-            <Card noHover>
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                  <Download className="w-4 h-4 text-emerald-400" />
-                </div>
-                <h2 className="text-base font-semibold text-white">Export Data</h2>
-              </div>
-
-              <p className="text-xs text-navy-400 mb-4">
-                Download all your budget data as a file for backup or analysis.
-              </p>
-
-              <Button
-                variant="secondary"
-                iconLeft={<Download className="w-4 h-4" />}
-                onClick={handleExport}
-              >
-                Export All Data
-              </Button>
             </Card>
           </motion.div>
 

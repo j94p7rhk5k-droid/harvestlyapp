@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useRef, useCallback, useEffect, ty
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
+import { fetchWithAuth } from '@/lib/api-client';
 import { playSend, playReceive, playSuccess, playBigSuccess, playError, playOpen, playClose } from '@/lib/sounds';
 import { useAuth } from './AuthContext';
 import {
@@ -303,7 +304,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           }]);
 
           // Pass 1: Extract raw transactions
-          const extractRes = await fetch('/api/import', {
+          const extractRes = await fetchWithAuth('/api/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -346,7 +347,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           // Pass 2: Categorize
           const categories = hooks.budgetMonth?.categories ?? [];
-          const catRes = await fetch('/api/import', {
+          const catRes = await fetchWithAuth('/api/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -486,7 +487,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           })),
         };
 
-        const res = await fetch('/api/chat', {
+        const res = await fetchWithAuth('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
@@ -552,6 +553,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       // Route files: images go through chat API, documents through import pipeline
       if (files && files.length > 0) {
+        // Excel files are not supported by the plain CSV parser — reject early
+        // with a clear message rather than silently corrupting the import.
+        const excel = files.find((f) =>
+          /\.(xlsx|xls)$/i.test(f.name) || f.type.includes('spreadsheet') || f.type.includes('excel'),
+        );
+        if (excel) {
+          const errMsg: ChatMessage = {
+            id: generateId(),
+            role: 'assistant',
+            content:
+              `Excel files (.xlsx/.xls) aren't supported yet. Please export "${excel.name}" as CSV or PDF and try again.`,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, errMsg]);
+          playError();
+          return;
+        }
+
         const hasImages = files.some((f) => f.type.startsWith('image/'));
         const hasDocuments = files.some((f) => !f.type.startsWith('image/'));
 
@@ -608,7 +627,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           budgetContext: { month, categories, recentTransactions, currency },
         };
 
-        const res = await fetch('/api/chat', {
+        const res = await fetchWithAuth('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),

@@ -137,7 +137,7 @@ export default function AddTransactionModal({
           >
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave} loading={saving}>
+          <Button size="sm" onClick={handleSave} loading={saving} disabled={saving}>
             Add Transaction
           </Button>
         </>

@@ -12,7 +12,8 @@ export function mergeBudgetMonths(
   if (!a) return b;
   if (!b) return a;
 
-  // Merge categories by name
+  // Merge categories by case-insensitive name. The first side's casing wins
+  // so the merged name is deterministic regardless of which partner loaded first.
   const categoryMap = new Map<string, Category>();
 
   for (const cat of a.categories) {
@@ -25,6 +26,7 @@ export function mergeBudgetMonths(
     if (existing) {
       existing.planned += cat.planned;
       existing.actual += cat.actual;
+      // Keep `existing.name` (side A's casing) rather than overwriting.
     } else {
       categoryMap.set(key, { ...cat });
     }

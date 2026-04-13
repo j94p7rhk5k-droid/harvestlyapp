@@ -193,6 +193,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
                 </span>
                 <button
                   onClick={() => removeFile(i)}
+                  aria-label={`Remove ${file.name}`}
                   className="p-0.5 rounded hover:bg-navy-700 text-navy-500 hover:text-navy-300 transition-colors"
                 >
                   <X className="w-3 h-3" />
@@ -207,6 +208,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
       <div className="flex items-end gap-2">
         <button
           onClick={() => fileInputRef.current?.click()}
+          aria-label="Attach files"
           className="p-2 rounded-xl text-navy-500 hover:text-brand-400 hover:bg-navy-800/50 transition-colors flex-shrink-0"
           title="Attach files (CSV, PDF, images)"
         >
@@ -235,6 +237,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
 
         <button
           onClick={handleSubmit}
+          aria-label="Send message"
           disabled={disabled || (!text.trim() && files.length === 0)}
           className={cn(
             'p-2 rounded-xl transition-all flex-shrink-0',

@@ -1,0 +1,97 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function partnerUid(uid) {
+      let profile = get(/databases/$(database)/documents/users/$(uid)).data;
+      return profile.get('householdPartnerId', profile.get('householdOwnerId', null));
+    }
+
+    function isHouseholdPartner(uid) {
+      return isSignedIn() && partnerUid(uid) == request.auth.uid;
+    }
+
+    function canAccessUserData(uid) {
+      return isOwner(uid) || isHouseholdPartner(uid);
+    }
+
+    // ── User profile ──────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Anyone signed in can read basic profiles (needed to resolve partner display)
+      allow read: if isSignedIn();
+
+      // Only the owner can write their profile, except a partner may set/clear
+      // the household pointer fields during accept/leave flows.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId)
+        || (
+          isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['householdOwnerId', 'householdPartnerId'])
+        );
+      allow delete: if isOwner(userId);
+
+      // ── Per-user subcollections ─────────────────────────────────────────
+      match /budgetMonths/{month} {
+        allow read, write: if canAccessUserData(userId);
+      }
+      match /savingsGoals/{goalId} {
+        allow read, write: if canAccessUserData(userId);
+      }
+      match /debtGoals/{goalId} {
+        allow read, write: if canAccessUserData(userId);
+      }
+      match /goalTransactions/{txId} {
+        allow read, write: if canAccessUserData(userId);
+      }
+      match /notifications/{notifId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /chatHistory/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── Household invites ─────────────────────────────────────────────────
+    // Sender can create, cancel, and read their own sent invites.
+    // Recipient (by email) can read, accept, or decline an invite addressed to them.
+    match /householdInvites/{inviteId} {
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow read: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid
+        || resource.data.toEmail == request.auth.token.email.lower()
+      );
+
+      // Sender may cancel (delete) their own invite.
+      allow delete: if isSignedIn() && resource.data.fromUid == request.auth.uid;
+
+      // Recipient may accept/decline — only allowed to flip status and set toUid
+      // to their own uid. Sender may not mutate the invite after creation.
+      allow update: if isSignedIn()
+        && resource.data.toEmail == request.auth.token.email.lower()
+        && request.resource.data.fromUid == resource.data.fromUid
+        && request.resource.data.toEmail == resource.data.toEmail
+        && request.resource.data.fromEmail == resource.data.fromEmail
+        && (
+          request.resource.data.status == 'accepted'
+          || request.resource.data.status == 'declined'
+        )
+        && (
+          !('toUid' in request.resource.data.keys())
+          || request.resource.data.toUid == request.auth.uid
+        );
+    }
+  }
+}

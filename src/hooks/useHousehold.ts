@@ -110,7 +110,7 @@ export function useHousehold() {
           (inv) => inv.fromEmail.toLowerCase() === normalizedEmail,
         );
         if (matchingInvite) {
-          await acceptHouseholdInvite(matchingInvite, user.uid);
+          await acceptHouseholdInvite(matchingInvite, user.uid, user.email);
           return;
         }
       }
@@ -140,7 +140,7 @@ export function useHousehold() {
   const acceptInvite = useCallback(
     async (invite: HouseholdInvite) => {
       if (!user) throw new Error('Not authenticated');
-      await acceptHouseholdInvite(invite, user.uid);
+      await acceptHouseholdInvite(invite, user.uid, user.email);
     },
     [user],
   );

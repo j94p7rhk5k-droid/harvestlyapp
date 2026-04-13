@@ -57,10 +57,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         {/* ── Logo ─────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 h-[72px] border-b border-navy-800/50">
-          <Link href="/dashboard" className="flex items-center gap-3 group">
+          <Link href="/dashboard" aria-label="Harvestly — Dashboard" className="flex items-center gap-3 group">
             <img
               src="/favicon.png"
-              alt="Harvestly"
+              alt=""
               className="w-9 h-9 rounded-xl shadow-glow group-hover:shadow-glow-lg transition-shadow"
             />
             <span className="text-xl font-bold gradient-text-accent tracking-tight">
@@ -69,6 +69,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </Link>
           <button
             onClick={onClose}
+            aria-label="Close navigation menu"
             className="lg:hidden p-1.5 rounded-lg hover:bg-navy-800/60 text-navy-400 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
@@ -86,6 +87,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 key={href}
                 href={href}
                 onClick={() => { onClose(); playPop(); }}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
                   isActive

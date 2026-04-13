@@ -3,6 +3,7 @@
 import {
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -32,37 +33,83 @@ export default function Modal({
   footer,
   maxWidth = 'max-w-lg',
 }: ModalProps) {
-  // Close on Escape
+  const cardRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  // Close on Escape + basic focus trap
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !cardRef.current) return;
+
+      const focusables = cardRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        if (active === first || !cardRef.current.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     },
-    [onClose]
+    [onClose],
   );
 
   useEffect(() => {
-    if (open) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
+    if (!open) return;
+
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    // Auto-focus the first focusable element inside the card
+    const raf = requestAnimationFrame(() => {
+      const first = cardRef.current?.querySelector<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      first?.focus();
+    });
+
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
+      restoreFocusRef.current?.focus?.();
     };
   }, [open, handleKeyDown]);
 
   if (!open) return null;
 
   const modal = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ?? 'Dialog'}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-backdrop-in"
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Card */}
       <div
+        ref={cardRef}
         className={cn(
           'relative w-full rounded-2xl bg-navy-900 border border-navy-800 shadow-2xl animate-modal-in',
           maxWidth
@@ -74,6 +121,7 @@ export default function Modal({
             <h2 className="text-lg font-semibold text-white">{title}</h2>
             <button
               onClick={onClose}
+              aria-label="Close dialog"
               className="p-1.5 rounded-lg text-navy-400 hover:text-white hover:bg-navy-800/60 transition-colors"
             >
               <X className="w-5 h-5" />
