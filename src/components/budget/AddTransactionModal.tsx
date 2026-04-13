@@ -8,6 +8,14 @@ import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { Category, NewTransaction, CategoryType, RecurrenceFrequency } from '@/types';
 
+const TYPE_OPTIONS: { value: CategoryType; label: string; icon: string }[] = [
+  { value: 'income', label: 'Income', icon: '💰' },
+  { value: 'expense', label: 'Expense', icon: '🛒' },
+  { value: 'bill', label: 'Bill', icon: '📄' },
+  { value: 'savings', label: 'Savings', icon: '🐷' },
+  { value: 'debt', label: 'Debt', icon: '💳' },
+];
+
 // ─── Props ──────────────────────────────────────────────────────────────────
 
 interface AddTransactionModalProps {
@@ -30,6 +38,7 @@ export default function AddTransactionModal({
   currency,
 }: AddTransactionModalProps) {
   const [amount, setAmount] = useState('');
+  const [selectedType, setSelectedType] = useState<CategoryType | ''>('');
   const [categoryId, setCategoryId] = useState(preselectedCategoryId ?? '');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
@@ -42,11 +51,14 @@ export default function AddTransactionModal({
   useEffect(() => {
     if (preselectedCategoryId) {
       setCategoryId(preselectedCategoryId);
+      const cat = categories.find((c) => c.id === preselectedCategoryId);
+      if (cat) setSelectedType(cat.type);
     }
-  }, [preselectedCategoryId]);
+  }, [preselectedCategoryId, categories]);
 
   const resetForm = useCallback(() => {
     setAmount('');
+    setSelectedType('');
     setCategoryId(preselectedCategoryId ?? '');
     setDate(new Date().toISOString().split('T')[0]);
     setNote('');
@@ -96,9 +108,13 @@ export default function AddTransactionModal({
     }
   };
 
-  const categoryOptions = categories.map((c) => ({
+  const filteredCategories = selectedType
+    ? categories.filter((c) => c.type === selectedType)
+    : [];
+
+  const categoryOptions = filteredCategories.map((c) => ({
     value: c.id,
-    label: `${c.name} (${c.type})`,
+    label: c.name,
   }));
 
   return (
@@ -142,15 +158,48 @@ export default function AddTransactionModal({
           error={error && !amount ? error : undefined}
         />
 
-        {/* Category selector */}
-        <Select
-          label="Category"
-          options={categoryOptions}
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          placeholder="Select a category..."
-          error={error && !categoryId ? error : undefined}
-        />
+        {/* Step 1: Type selector */}
+        <div>
+          <label className="block text-sm font-medium text-navy-300 mb-2">Type</label>
+          <div className="flex flex-wrap gap-2">
+            {TYPE_OPTIONS.map((opt) => {
+              const count = categories.filter((c) => c.type === opt.value).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setSelectedType(opt.value);
+                    setCategoryId('');
+                  }}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border',
+                    selectedType === opt.value
+                      ? 'bg-brand-500/15 border-brand-500/40 text-brand-400'
+                      : 'bg-navy-800/30 border-navy-700 text-navy-400 hover:text-navy-300 hover:border-navy-600',
+                  )}
+                >
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                  <span className="text-navy-500 text-[10px]">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Step 2: Category dropdown (filtered by type) */}
+        {selectedType && (
+          <Select
+            label="Category"
+            options={categoryOptions}
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            placeholder={`Select ${selectedType} category...`}
+            error={error && !categoryId ? error : undefined}
+          />
+        )}
 
         {/* Date */}
         <Input
