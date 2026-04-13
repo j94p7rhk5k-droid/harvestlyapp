@@ -365,7 +365,7 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-violet-500/10 text-violet-400">
-                      {household.isOwner ? 'You are owner' : 'You are partner'}
+                      {household.isOwner ? 'Owner' : 'Partner'}
                     </span>
                   </div>
 
