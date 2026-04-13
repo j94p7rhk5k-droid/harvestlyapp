@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -112,6 +112,7 @@ function GoogleIcon() {
 export default function LandingPage() {
   const { user, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const [signingIn, setSigningIn] = useState(false);
 
   // Redirect authenticated users
   useEffect(() => {
@@ -121,16 +122,27 @@ export default function LandingPage() {
   }, [user, loading, router]);
 
   const handleSignIn = useCallback(async () => {
+    setSigningIn(true);
     try {
       await signInWithGoogle();
-      router.push('/dashboard');
+      // Redirect happens via useEffect when user state updates
     } catch (err) {
       console.error('Sign-in failed:', err);
+      setSigningIn(false);
     }
-  }, [signInWithGoogle, router]);
+  }, [signInWithGoogle]);
 
-  // If already authenticated, redirect will happen via useEffect above.
-  // Don't block rendering — show the landing page immediately.
+  // Show nothing while auth is loading or user is already signed in — prevents flash
+  if (loading || user || signingIn) {
+    return (
+      <div className="fixed inset-0 bg-navy-950 flex items-center justify-center">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-2 border-navy-800" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-brand-500 animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-navy-950 overflow-hidden relative">
