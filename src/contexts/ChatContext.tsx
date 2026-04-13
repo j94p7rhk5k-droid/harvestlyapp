@@ -4,9 +4,21 @@ import { createContext, useContext, useState, useRef, useCallback, type ReactNod
 import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
 import { processFile } from '@/lib/csv-parser';
+import {
+  addTransaction as fsAddTransaction,
+  addCategory as fsAddCategory,
+  getBudgetMonth,
+} from '@/lib/firestore';
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/** Extract "YYYY-MM" from a date string like "2026-03-15" */
+function getMonthFromDate(date: string): string {
+  const parts = date.split('-');
+  if (parts.length >= 2) return `${parts[0]}-${parts[1]}`;
+  return new Date().toISOString().slice(0, 7);
 }
 
 interface ChatContextValue {
@@ -70,6 +82,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
         case 'add_transaction': {
           const { categoryName, categoryId, type, amount, date, note, isRecurring } = action.params;
+          const txMonth = getMonthFromDate(date);
+          const targetMonth = txMonth || hooks.month;
+
           let resolvedId = categoryId;
           if (!resolvedId || resolvedId === '') {
             resolvedId = createdCategoriesRef.current.get(categoryName.toLowerCase());
@@ -83,15 +98,44 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           if (!resolvedId) {
             throw new Error(`Category "${categoryName}" not found`);
           }
-          await addTransaction({
-            categoryId: resolvedId,
-            categoryName,
-            type,
-            amount,
-            date,
-            note: note ?? '',
-            isRecurring: isRecurring ?? false,
-          });
+
+          // Write directly to the correct month (may differ from current view)
+          if (targetMonth !== hooks.month) {
+            // Ensure category exists in the target month too
+            const targetBm = await getBudgetMonth(hooks.effectiveUserId!, targetMonth);
+            const catInTarget = targetBm.categories.find(
+              (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
+            );
+            if (!catInTarget) {
+              await fsAddCategory(hooks.effectiveUserId!, targetMonth, { name: categoryName, type, planned: 0 });
+              const refreshed = await getBudgetMonth(hooks.effectiveUserId!, targetMonth);
+              const newCat = refreshed.categories.find(
+                (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
+              );
+              resolvedId = newCat?.id ?? resolvedId;
+            } else {
+              resolvedId = catInTarget.id;
+            }
+            await fsAddTransaction(hooks.effectiveUserId!, targetMonth, {
+              categoryId: resolvedId,
+              categoryName,
+              type,
+              amount,
+              date,
+              note: note ?? '',
+              isRecurring: isRecurring ?? false,
+            });
+          } else {
+            await addTransaction({
+              categoryId: resolvedId,
+              categoryName,
+              type,
+              amount,
+              date,
+              note: note ?? '',
+              isRecurring: isRecurring ?? false,
+            });
+          }
           break;
         }
         case 'delete_transaction': {
@@ -109,27 +153,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           if (!Array.isArray(transactions)) {
             transactions = transactions ? [transactions] : [];
           }
+          const userId = hooks.effectiveUserId!;
           for (const tx of transactions) {
-            let resolvedId = tx.categoryId;
-            if (!resolvedId || resolvedId === '') {
-              resolvedId = createdCategoriesRef.current.get(tx.categoryName?.toLowerCase());
+            const txMonth = getMonthFromDate(tx.date);
+            const targetMonth = txMonth || hooks.month;
+
+            // Ensure category exists in the target month
+            const targetBm = await getBudgetMonth(userId, targetMonth);
+            let resolvedId = '';
+            const catInTarget = targetBm.categories.find(
+              (c) => c.name.toLowerCase() === tx.categoryName?.toLowerCase(),
+            );
+            if (catInTarget) {
+              resolvedId = catInTarget.id;
+            } else {
+              // Check if we created it earlier in this batch
+              resolvedId = createdCategoriesRef.current.get(tx.categoryName?.toLowerCase()) ?? '';
+              if (!resolvedId) {
+                const created = await fsAddCategory(userId, targetMonth, {
+                  name: tx.categoryName,
+                  type: tx.type,
+                  planned: 0,
+                });
+                resolvedId = created.id;
+                createdCategoriesRef.current.set(tx.categoryName.toLowerCase(), created.id);
+              }
             }
-            if (!resolvedId) {
-              const existing = budgetMonth?.categories.find(
-                (c) => c.name.toLowerCase() === tx.categoryName?.toLowerCase(),
-              );
-              resolvedId = existing?.id ?? '';
-            }
-            if (!resolvedId) {
-              const created = await addCategory({
-                name: tx.categoryName,
-                type: tx.type,
-                planned: 0,
-              });
-              resolvedId = created.id;
-              createdCategoriesRef.current.set(tx.categoryName.toLowerCase(), created.id);
-            }
-            await addTransaction({
+
+            await fsAddTransaction(userId, targetMonth, {
               categoryId: resolvedId,
               categoryName: tx.categoryName,
               type: tx.type,
