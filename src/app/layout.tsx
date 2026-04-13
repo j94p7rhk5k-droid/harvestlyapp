@@ -14,6 +14,29 @@ export const metadata: Metadata = {
   description:
     'Cultivate your financial future with Harvestly. Track spending, set savings goals, manage debt, and visualize your financial health — all in one beautiful dashboard.',
   keywords: ['budget', 'finance', 'tracking', 'savings', 'goals', 'expenses'],
+  openGraph: {
+    title: 'Harvestly | Smart Budget Tracking',
+    description:
+      'Cultivate your financial future with Harvestly. Track spending, set savings goals, manage debt, and visualize your financial health.',
+    url: 'https://harvestlyapp.com',
+    siteName: 'Harvestly',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Control your finances with Harvestly',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Harvestly | Smart Budget Tracking',
+    description:
+      'Cultivate your financial future with Harvestly. Track spending, set savings goals, manage debt, and visualize your financial health.',
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
