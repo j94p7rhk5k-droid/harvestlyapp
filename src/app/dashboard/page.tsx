@@ -222,15 +222,23 @@ export default function DashboardPage() {
 
   // ── Donut chart data ────────────────────────────────────────────────────
 
+  const DONUT_COLORS = [
+    '#c9922a', '#22c55e', '#6366f1', '#f97316', '#ec4899',
+    '#14b8a6', '#a855f7', '#ef4444', '#3b82f6', '#eab308',
+    '#06b6d4', '#f43f5e', '#84cc16', '#8b5cf6', '#fb923c',
+  ];
+
   const donutData = useMemo(() => {
-    if (!dashboard) return [];
-    return [
-      { name: 'Expenses', value: dashboard.totalExpensesActual, color: getCategoryColor('expense') },
-      { name: 'Bills', value: dashboard.totalBillsActual, color: getCategoryColor('bill') },
-      { name: 'Savings', value: dashboard.totalSavingsActual, color: getCategoryColor('savings') },
-      { name: 'Debt', value: dashboard.totalDebtActual, color: getCategoryColor('debt') },
-    ];
-  }, [dashboard]);
+    if (!budgetMonth) return [];
+    return (budgetMonth.categories ?? [])
+      .filter((c) => c.type !== 'income' && c.actual > 0)
+      .sort((a, b) => b.actual - a.actual)
+      .map((c, i) => ({
+        name: c.name,
+        value: c.actual,
+        color: DONUT_COLORS[i % DONUT_COLORS.length],
+      }));
+  }, [budgetMonth]);
 
   const totalAllocated = useMemo(
     () => donutData.reduce((s, d) => s + d.value, 0),
