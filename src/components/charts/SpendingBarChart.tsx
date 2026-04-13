@@ -10,8 +10,22 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { formatCurrency, getCategoryColor } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import type { CategoryType } from '@/types';
+
+// Distinct colors for each bar
+const BAR_COLORS = [
+  '#c9922a', // gold
+  '#22c55e', // green
+  '#6366f1', // indigo
+  '#f97316', // orange
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#a855f7', // purple
+  '#ef4444', // red
+  '#3b82f6', // blue
+  '#eab308', // yellow
+];
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -121,7 +135,7 @@ export default function SpendingBarChart({
             {sorted.map((entry, i) => (
               <Cell
                 key={`bar-${i}`}
-                fill={getCategoryColor(entry.type)}
+                fill={BAR_COLORS[i % BAR_COLORS.length]}
                 fillOpacity={0.85}
               />
             ))}
