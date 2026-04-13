@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 // ─── Props ──────────────────────────────────────────────────────────────────
 
 interface ProgressRingProps {
-  /** 0–100 percentage */
+  /** 0–100 percentage remaining */
   percentage: number;
   /** Size in pixels */
   size?: number;
@@ -16,26 +16,9 @@ interface ProgressRingProps {
   centerValue: string;
   /** Small label underneath the center value */
   centerLabel?: string;
-  /** Override the color (otherwise auto green/yellow/red) */
+  /** Override the bright color (default green) */
   color?: string;
   className?: string;
-}
-
-// ─── Color logic ────────────────────────────────────────────────────────────
-
-/** Color based on how much is remaining (high = green, low = red) */
-function getStrokeColor(remainingPct: number): string {
-  if (remainingPct <= 0) return '#ef4444';   // red — overspent
-  if (remainingPct <= 20) return '#f59e0b';  // amber — almost gone
-  if (remainingPct <= 40) return '#eab308';  // yellow — getting low
-  return '#22c55e';                           // green — plenty left
-}
-
-function getGlowColor(remainingPct: number): string {
-  if (remainingPct <= 0) return 'rgba(239,68,68,0.3)';
-  if (remainingPct <= 20) return 'rgba(245,158,11,0.25)';
-  if (remainingPct <= 40) return 'rgba(234,179,8,0.2)';
-  return 'rgba(34,197,94,0.25)';
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -51,27 +34,20 @@ export default function ProgressRing({
 }: ProgressRingProps) {
   const [animatedPct, setAnimatedPct] = useState(0);
 
-  // Animate in on mount / value change
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAnimatedPct(Math.min(percentage, 100));
+      setAnimatedPct(Math.min(Math.max(percentage, 0), 100));
     }, 100);
     return () => clearTimeout(timer);
   }, [percentage]);
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const remainingOffset = circumference - (animatedPct / 100) * circumference;
-  const strokeColor = color ?? getStrokeColor(percentage);
-  const glowColor = color ? `${color}40` : getGlowColor(percentage);
 
-  // Dimmed version of the stroke color for spent portion
-  const dimColor = color
-    ? `${color}20`
-    : percentage <= 0 ? 'rgba(239,68,68,0.15)'
-    : percentage <= 20 ? 'rgba(245,158,11,0.15)'
-    : percentage <= 40 ? 'rgba(234,179,8,0.15)'
-    : 'rgba(34,197,94,0.15)';
+  // The bright green arc = remaining percentage
+  // It starts at the top and the dim gap grows clockwise from the top
+  const brightLength = (animatedPct / 100) * circumference;
+  const dimLength = circumference - brightLength;
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
@@ -79,31 +55,31 @@ export default function ProgressRing({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        style={{ transform: 'rotate(-90deg) scaleX(-1)' }}
       >
-        {/* Full ring in dimmed color (spent = faded) */}
+        {/* Dim full ring (background — represents spent) */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={dimColor}
+          stroke={color ? `${color}20` : 'rgba(34, 197, 94, 0.12)'}
           strokeWidth={strokeWidth}
         />
-        {/* Bright arc — remaining budget */}
+        {/* Bright arc — remaining */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={strokeColor}
+          stroke={color ?? '#22c55e'}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={remainingOffset}
+          strokeDasharray={`${brightLength} ${dimLength}`}
+          strokeDashoffset={0}
+          transform={`rotate(90 ${size / 2} ${size / 2})`}
           style={{
-            transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            filter: `drop-shadow(0 0 8px ${glowColor})`,
+            transition: 'stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            filter: `drop-shadow(0 0 8px ${color ? `${color}40` : 'rgba(34, 197, 94, 0.3)'})`,
           }}
         />
       </svg>
