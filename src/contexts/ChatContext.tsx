@@ -311,12 +311,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
 
       try {
-        // Build conversation history
+        // Build conversation history — only last 6 messages to avoid bloating the request
         const allMessages = [...messages, userMsg];
-        const history = allMessages.filter((m) => m.id !== 'welcome').map((m) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-        }));
+        const history = allMessages
+          .filter((m) => m.id !== 'welcome')
+          .slice(-6)
+          .map((m) => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
 
         // Build budget context
         const { month, currency, budgetMonth } = hooks;

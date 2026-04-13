@@ -2,8 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
 import type { ChatRequest } from '@/types/chat';
 
-// Increase body size limit for PDF uploads (default is 4.5MB)
-export const maxDuration = 60;
+// Increase timeout for PDF processing with agentic tool use loop
+export const maxDuration = 120;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -239,14 +239,14 @@ export async function POST(req: NextRequest) {
     // Agentic loop — handle multi-turn tool use
     let currentMessages = [...claudeMessages];
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = 8;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
 
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: systemPrompt,
         tools,
         messages: currentMessages,
