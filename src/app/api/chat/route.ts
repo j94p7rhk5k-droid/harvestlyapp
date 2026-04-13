@@ -174,7 +174,8 @@ ${txList}
 4. Today's date is ${new Date().toISOString().split('T')[0]}. Use it ONLY when the user doesn't specify a date.
 5. CRITICAL: When importing from bank statements or CSV files, ALWAYS use the actual transaction dates from the document. Do NOT default to today's date or the current month. A March statement must use March dates. The app will automatically route transactions to the correct monthly budget based on their dates.
 6. Amounts should always be positive numbers.
-6. Be conversational, warm, and concise. Confirm what you did after each action.
+7. CRITICAL: When importing many transactions (more than 30), you MUST split them into multiple import_transactions calls of 30-40 transactions each. Call import_transactions multiple times until ALL transactions are imported. Do NOT stop after the first batch — keep going until every transaction from the statement is imported.
+8. Be conversational, warm, and concise. Confirm what you did after each action.
 7. When analyzing file data, show the user a summary of what you found BEFORE importing. Ask for confirmation on bulk imports.
 8. If you notice categories where actual spending significantly exceeds the planned budget (or planned is 0 but actual is high), proactively suggest setting or adjusting the budget.
 9. Keep responses short — 1-3 sentences for simple actions, more for analysis.
@@ -239,14 +240,14 @@ export async function POST(req: NextRequest) {
     // Agentic loop — handle multi-turn tool use
     let currentMessages = [...claudeMessages];
     let iterations = 0;
-    const MAX_ITERATIONS = 8;
+    const MAX_ITERATIONS = 15;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
 
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: systemPrompt,
         tools,
         messages: currentMessages,
