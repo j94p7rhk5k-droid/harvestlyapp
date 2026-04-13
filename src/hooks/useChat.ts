@@ -202,11 +202,11 @@ export function useChat(options: UseChatOptions) {
           body: JSON.stringify(requestBody),
         });
 
-        if (!res.ok) {
-          throw new Error(`API error: ${res.status}`);
-        }
-
         const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error ?? data.details ?? `API error: ${res.status}`);
+        }
 
         // Execute actions
         const executedActions: ChatAction[] = [];
@@ -243,7 +243,7 @@ export function useChat(options: UseChatOptions) {
         const errorMsg: ChatMessage = {
           id: generateId(),
           role: 'assistant',
-          content: "Sorry, I ran into an issue. Please try again.",
+          content: `Sorry, I ran into an issue: ${err.message}`,
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);

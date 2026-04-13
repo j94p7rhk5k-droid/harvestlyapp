@@ -230,9 +230,12 @@ export async function POST(req: NextRequest) {
       actions,
     });
   } catch (err: any) {
-    console.error('[chat/route] Error:', err);
+    console.error('[chat/route] Error:', err?.message, err?.status, err?.error);
     return Response.json(
-      { error: err.message ?? 'Internal server error' },
+      {
+        error: err.message ?? 'Internal server error',
+        details: err?.error?.message ?? err?.status ?? 'unknown',
+      },
       { status: 500 },
     );
   }
