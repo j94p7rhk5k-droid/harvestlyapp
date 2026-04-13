@@ -149,7 +149,7 @@ ${txList}
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequest = await req.json();
-    const { messages, budgetContext, fileContent, fileName } = body;
+    const { messages, budgetContext, files } = body;
 
     // Build messages for Claude
     const claudeMessages: Anthropic.MessageParam[] = messages.map((m) => ({
@@ -157,11 +157,39 @@ export async function POST(req: NextRequest) {
       content: m.content,
     }));
 
-    // If file content is included, append it to the last user message
-    if (fileContent && claudeMessages.length > 0) {
-      const last = claudeMessages[claudeMessages.length - 1];
+    // Attach files to the last user message as content blocks
+    if (files && files.length > 0 && claudeMessages.length > 0) {
+      const lastIdx = claudeMessages.length - 1;
+      const last = claudeMessages[lastIdx];
       if (last.role === 'user') {
-        last.content = `${last.content}\n\n--- File: ${fileName ?? 'uploaded file'} ---\n${fileContent}`;
+        const contentBlocks: Anthropic.ContentBlockParam[] = [];
+
+        // Add the text first
+        if (typeof last.content === 'string' && last.content.trim()) {
+          contentBlocks.push({ type: 'text', text: last.content });
+        }
+
+        // Add each file
+        for (const file of files) {
+          if (file.type === 'pdf') {
+            contentBlocks.push({
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: file.content,
+              },
+            } as any);
+          } else {
+            // CSV — include as text
+            contentBlocks.push({
+              type: 'text',
+              text: `\n--- File: ${file.name} ---\n${file.content}`,
+            });
+          }
+        }
+
+        claudeMessages[lastIdx] = { role: 'user', content: contentBlocks };
       }
     }
 

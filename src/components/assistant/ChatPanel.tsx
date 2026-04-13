@@ -12,7 +12,7 @@ interface ChatPanelProps {
   onClose: () => void;
   messages: ChatMessageType[];
   isLoading: boolean;
-  onSend: (text: string, file?: File) => void;
+  onSend: (text: string, files?: File[]) => void;
 }
 
 export default function ChatPanel({

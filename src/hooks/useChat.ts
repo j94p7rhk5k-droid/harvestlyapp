@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import type { ChatMessage, ChatAction, ChatRequest } from '@/types/chat';
+import type { ChatMessage, ChatAction, ChatRequest, FileAttachment } from '@/types/chat';
 import type { Category, NewCategory, NewTransaction, BudgetMonth } from '@/types';
-import { readFileAsText, parseCSV } from '@/lib/csv-parser';
+import { processFile } from '@/lib/csv-parser';
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -139,23 +139,20 @@ export function useChat(options: UseChatOptions) {
   // ── Send a message ───────────────────────────────────────────────────────
 
   const sendMessage = useCallback(
-    async (text: string, file?: File) => {
-      if (!text.trim() && !file) return;
+    async (text: string, files?: File[]) => {
+      if (!text.trim() && (!files || files.length === 0)) return;
       if (!effectiveUserId) return;
 
-      // Parse file if provided
-      let fileContent: string | undefined;
-      let fileName: string | undefined;
+      // Process files
+      let parsedFiles: FileAttachment[] | undefined;
       let fileInfo: ChatMessage['fileInfo'] | undefined;
 
-      if (file) {
-        fileName = file.name;
-        fileInfo = { name: file.name, type: file.type, size: file.size };
+      if (files && files.length > 0) {
+        fileInfo = { name: files.map((f) => f.name).join(', '), type: files[0].type, size: files.reduce((s, f) => s + f.size, 0) };
         try {
-          const raw = await readFileAsText(file);
-          fileContent = parseCSV(raw);
+          parsedFiles = await Promise.all(files.map(processFile));
         } catch {
-          fileContent = undefined;
+          parsedFiles = undefined;
         }
       }
 
@@ -163,7 +160,7 @@ export function useChat(options: UseChatOptions) {
       const userMsg: ChatMessage = {
         id: generateId(),
         role: 'user',
-        content: text || `Uploaded file: ${fileName}`,
+        content: text || `Uploaded ${files?.length ?? 0} file(s): ${files?.map((f) => f.name).join(', ')}`,
         timestamp: new Date().toISOString(),
         fileInfo,
       };
@@ -192,8 +189,7 @@ export function useChat(options: UseChatOptions) {
         const requestBody: ChatRequest = {
           messages: history,
           budgetContext: { month, categories, recentTransactions, currency },
-          fileContent,
-          fileName,
+          files: parsedFiles,
         };
 
         const res = await fetch('/api/chat', {

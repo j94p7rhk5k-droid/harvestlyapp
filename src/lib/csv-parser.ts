@@ -1,31 +1,24 @@
-export interface ParsedRow {
-  date: string;
-  description: string;
-  amount: number;
-  type: 'credit' | 'debit';
+export interface ParsedFile {
+  name: string;
+  type: 'csv' | 'pdf';
+  content: string; // text for CSV, base64 for PDF
 }
 
 /**
- * Parse a CSV string from a bank/credit card export into structured rows.
- * Handles common formats: Date, Description, Amount (or Debit/Credit columns).
+ * Parse a CSV: clean it up and cap at 100 rows for token limits.
  */
 export function parseCSV(text: string): string {
   const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return text; // Not enough data, return as-is for Claude
+  if (lines.length < 2) return text;
 
-  // Normalize: just return the cleaned CSV text for Claude to interpret.
-  // Claude is better at understanding varied bank statement formats than
-  // a rigid parser would be.
-  const cleaned = lines
+  return lines
     .filter((line) => line.trim().length > 0)
-    .slice(0, 100) // Cap at 100 rows to stay within token limits
+    .slice(0, 100)
     .join('\n');
-
-  return cleaned;
 }
 
 /**
- * Read a File object as text.
+ * Read a File as text (for CSV).
  */
 export function readFileAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,4 +27,37 @@ export function readFileAsText(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsText(file);
   });
+}
+
+/**
+ * Read a File as base64 data URL (for PDFs).
+ */
+export function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the data URL prefix to get raw base64
+      const base64 = result.split(',')[1] ?? result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Process a File into a ParsedFile for the API.
+ */
+export async function processFile(file: File): Promise<ParsedFile> {
+  const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+  if (isPdf) {
+    const base64 = await readFileAsBase64(file);
+    return { name: file.name, type: 'pdf', content: base64 };
+  }
+
+  // CSV / text
+  const text = await readFileAsText(file);
+  return { name: file.name, type: 'csv', content: parseCSV(text) };
 }

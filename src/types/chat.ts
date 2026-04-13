@@ -25,6 +25,12 @@ export interface ChatAction {
   error?: string;
 }
 
+export interface FileAttachment {
+  name: string;
+  type: 'csv' | 'pdf';
+  content: string; // text for CSV, base64 for PDF
+}
+
 // API request/response types
 export interface ChatRequest {
   messages: { role: 'user' | 'assistant'; content: string }[];
@@ -34,6 +40,5 @@ export interface ChatRequest {
     recentTransactions: { categoryName: string; type: CategoryType; amount: number; date: string; note?: string }[];
     currency: string;
   };
-  fileContent?: string;
-  fileName?: string;
+  files?: FileAttachment[];
 }
