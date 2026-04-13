@@ -146,7 +146,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             resolvedId = existing?.id ?? '';
           }
           if (!resolvedId) {
-            throw new Error(`Category "${categoryName}" not found`);
+            // Auto-create the category if it doesn't exist
+            const created = await addCategory({ name: categoryName, type: type ?? 'expense', planned: 0 });
+            resolvedId = created.id;
+            createdCategoriesRef.current.set(categoryName.toLowerCase(), created.id);
           }
 
           // Write directly to the correct month (may differ from current view)
