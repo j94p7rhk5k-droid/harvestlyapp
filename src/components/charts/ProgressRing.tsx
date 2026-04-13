@@ -44,10 +44,10 @@ export default function ProgressRing({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // The bright green arc = remaining percentage
-  // It starts at the top and the dim gap grows clockwise from the top
+  // Spent portion grows clockwise from 12 o'clock (midnight)
+  // Bright arc = remaining, offset so it starts AFTER the spent portion
+  const spentLength = ((100 - animatedPct) / 100) * circumference;
   const brightLength = (animatedPct / 100) * circumference;
-  const dimLength = circumference - brightLength;
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
@@ -56,7 +56,7 @@ export default function ProgressRing({
         height={size}
         viewBox={`0 0 ${size} ${size}`}
       >
-        {/* Dim full ring (background — represents spent) */}
+        {/* Dim full ring (background) */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -65,7 +65,7 @@ export default function ProgressRing({
           stroke={color ? `${color}20` : 'rgba(34, 197, 94, 0.12)'}
           strokeWidth={strokeWidth}
         />
-        {/* Bright arc — remaining */}
+        {/* Bright arc — remaining, pushed down by the spent offset */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -74,11 +74,11 @@ export default function ProgressRing({
           stroke={color ?? '#22c55e'}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          strokeDasharray={`${brightLength} ${dimLength}`}
-          strokeDashoffset={0}
-          transform={`rotate(90 ${size / 2} ${size / 2})`}
+          strokeDasharray={`${brightLength} ${circumference - brightLength}`}
+          strokeDashoffset={-spentLength}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{
-            transition: 'stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
             filter: `drop-shadow(0 0 8px ${color ? `${color}40` : 'rgba(34, 197, 94, 0.3)'})`,
           }}
         />
