@@ -11,9 +11,11 @@ import {
   ChevronDown,
   LogOut,
   User,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
+import { useHouseholdView } from '@/contexts/HouseholdViewContext';
 import { getMonthName, cn } from '@/lib/utils';
 
 // ─── Route → page title mapping ────────────────────────────────────────────
@@ -46,6 +48,7 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
   const pathname = usePathname();
   const { userProfile, signOut } = useAuth();
   const { currentMonth, nextMonth, prevMonth } = useMonth();
+  const { isInHousehold, viewMode, setViewMode } = useHouseholdView();
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
 
@@ -101,6 +104,36 @@ export default function Header({ onMenuClick, onAddTransaction }: HeaderProps) {
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+
+        {/* ── Household toggle ──────────────────────────────────────────── */}
+        {isInHousehold && (
+          <div className="hidden sm:flex items-center bg-navy-900/60 rounded-xl p-1 border border-navy-800/50">
+            <button
+              onClick={() => setViewMode('personal')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                viewMode === 'personal'
+                  ? 'bg-brand-500 text-white shadow-sm'
+                  : 'text-navy-400 hover:text-white',
+              )}
+            >
+              <User className="w-3.5 h-3.5" />
+              My Budget
+            </button>
+            <button
+              onClick={() => setViewMode('household')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                viewMode === 'household'
+                  ? 'bg-violet-500 text-white shadow-sm'
+                  : 'text-navy-400 hover:text-white',
+              )}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Household
+            </button>
+          </div>
+        )}
 
         {/* ── Right: Actions ─────────────────────────────────────────────── */}
         <div className="flex items-center gap-2">

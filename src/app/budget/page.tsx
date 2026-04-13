@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
-import { useBudget } from '@/hooks/useBudget';
+import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import AppLayout from '@/components/layout/AppLayout';
 import BudgetSection from '@/components/budget/BudgetSection';
 import BudgetSummaryBar from '@/components/budget/BudgetSummaryBar';
@@ -97,7 +97,7 @@ const SECTION_ORDER: CategoryType[] = ['income', 'expense', 'bill', 'savings', '
 // ─── Main page component ────────────────────────────────────────────────────
 
 export default function BudgetPage() {
-  const { user, userProfile, effectiveUserId } = useAuth();
+  const { user, userProfile } = useAuth();
   const { currentMonth } = useMonth();
   const {
     budgetMonth,
@@ -108,7 +108,7 @@ export default function BudgetPage() {
     addTransaction,
     updateBudgetPeriod,
     updateRollover,
-  } = useBudget(effectiveUserId, currentMonth);
+  } = useHouseholdBudget();
 
   const currency = userProfile?.currency ?? '$';
 

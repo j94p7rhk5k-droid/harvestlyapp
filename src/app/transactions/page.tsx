@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
-import { useBudget } from '@/hooks/useBudget';
+import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import AppLayout from '@/components/layout/AppLayout';
 import TransactionFilters, {
   type FilterState,
@@ -80,9 +80,9 @@ const CATEGORY_COLORS: Record<CategoryType, string> = {
 // ─── Main page ──────────────────────────────────────────────────────────────
 
 export default function TransactionsPage() {
-  const { user, userProfile, effectiveUserId } = useAuth();
+  const { user, userProfile } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, loading, deleteTransaction } = useBudget(effectiveUserId, currentMonth);
+  const { budgetMonth, loading, deleteTransaction } = useHouseholdBudget();
 
   const currency = userProfile?.currency ?? '$';
   const allTransactions = budgetMonth?.transactions ?? [];

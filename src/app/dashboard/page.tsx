@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
-import { useBudget } from '@/hooks/useBudget';
+import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import AppLayout from '@/components/layout/AppLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -123,9 +123,9 @@ interface OverviewCardData {
 // ─── Main page component ────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user, userProfile, effectiveUserId } = useAuth();
+  const { user, userProfile } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, loading, addTransaction, addCategory } = useBudget(effectiveUserId, currentMonth);
+  const { budgetMonth, loading, addTransaction, addCategory } = useHouseholdBudget();
   const currency = userProfile?.currency ?? '$';
 
   // ── Compute dashboard data ──────────────────────────────────────────────

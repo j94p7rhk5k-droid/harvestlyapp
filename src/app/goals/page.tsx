@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Landmark, Plus, PiggyBank } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useGoals } from '@/hooks/useGoals';
+import { useHouseholdGoals } from '@/hooks/useHouseholdGoals';
 import AppLayout from '@/components/layout/AppLayout';
 import SavingsGoalCard from '@/components/goals/SavingsGoalCard';
 import DebtGoalCard from '@/components/goals/DebtGoalCard';
@@ -84,7 +84,7 @@ export default function GoalsPage() {
     deleteDebtGoal,
     addGoalTransaction,
     getGoalTransactions,
-  } = useGoals(effectiveUserId);
+  } = useHouseholdGoals();
 
   const currency = userProfile?.currency ?? '$';
 

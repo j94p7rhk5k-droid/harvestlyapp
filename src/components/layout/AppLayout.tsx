@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Users, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMonth } from '@/contexts/MonthContext';
-import { useBudget } from '@/hooks/useBudget';
+import { useHouseholdBudget } from '@/hooks/useHouseholdBudget';
 import { useHousehold } from '@/hooks/useHousehold';
 import { useChat } from '@/hooks/useChat';
 import Sidebar from './Sidebar';
@@ -40,7 +40,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, addTransaction, addCategory, updateCategory } = useBudget(effectiveUserId, currentMonth);
+  const { budgetMonth, addTransaction, addCategory, updateCategory } = useHouseholdBudget();
   const { pendingInvites } = useHousehold();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);

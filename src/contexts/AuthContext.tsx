@@ -40,10 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // The uid to use for all data operations — partner uses owner's uid
+  // Always use own UID — each person maintains their own budget
   const effectiveUserId = useMemo(
-    () => userProfile?.householdOwnerId ?? user?.uid ?? undefined,
-    [userProfile?.householdOwnerId, user?.uid],
+    () => user?.uid ?? undefined,
+    [user?.uid],
   );
 
   // Ensure a Firestore profile doc exists for the given Firebase user.
