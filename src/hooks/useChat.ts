@@ -16,6 +16,7 @@ interface UseChatOptions {
   budgetMonth: BudgetMonth | null;
   addCategory: (cat: NewCategory) => Promise<Category>;
   addTransaction: (tx: NewTransaction) => Promise<any>;
+  deleteTransaction: (id: string) => Promise<void>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ export function useChat(options: UseChatOptions) {
     budgetMonth,
     addCategory,
     addTransaction,
+    deleteTransaction,
     updateCategory,
   } = options;
 
@@ -88,6 +90,11 @@ export function useChat(options: UseChatOptions) {
             });
             break;
           }
+          case 'delete_transaction': {
+            const { transactionId } = action.params;
+            await deleteTransaction(transactionId);
+            break;
+          }
           case 'update_category_budget': {
             const { categoryId, planned } = action.params;
             await updateCategory(categoryId, { planned });
@@ -133,7 +140,7 @@ export function useChat(options: UseChatOptions) {
         throw err;
       }
     },
-    [addCategory, addTransaction, updateCategory, budgetMonth],
+    [addCategory, addTransaction, deleteTransaction, updateCategory, budgetMonth],
   );
 
   // ── Send a message ───────────────────────────────────────────────────────
@@ -177,8 +184,9 @@ export function useChat(options: UseChatOptions) {
         // Build budget context
         const categories = budgetMonth?.categories ?? [];
         const recentTransactions = (budgetMonth?.transactions ?? [])
-          .slice(-15)
+          .slice(-20)
           .map((t) => ({
+            id: t.id,
             categoryName: t.categoryName,
             type: t.type,
             amount: t.amount,

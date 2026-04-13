@@ -9,6 +9,7 @@ function ActionBadge({ action }: { action: ChatAction }) {
   const labels: Record<string, string> = {
     add_category: 'Created category',
     add_transaction: 'Added transaction',
+    delete_transaction: 'Deleted transaction',
     update_category_budget: 'Updated budget',
     import_transactions: 'Imported transactions',
   };

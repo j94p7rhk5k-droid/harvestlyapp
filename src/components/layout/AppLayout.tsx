@@ -40,7 +40,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, loading, userProfile, effectiveUserId } = useAuth();
   const { currentMonth } = useMonth();
-  const { budgetMonth, addTransaction, addCategory, updateCategory } = useHouseholdBudget();
+  const { budgetMonth, addTransaction, deleteTransaction, addCategory, updateCategory } = useHouseholdBudget();
   const { pendingInvites } = useHousehold();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,6 +53,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     budgetMonth,
     addCategory,
     addTransaction,
+    deleteTransaction,
     updateCategory,
   });
 

@@ -12,6 +12,7 @@ export interface ChatMessage {
 export type ChatActionType =
   | 'add_category'
   | 'add_transaction'
+  | 'delete_transaction'
   | 'update_category_budget'
   | 'import_transactions';
 
@@ -37,7 +38,7 @@ export interface ChatRequest {
   budgetContext: {
     month: string;
     categories: { id: string; name: string; type: CategoryType; planned: number; actual: number }[];
-    recentTransactions: { categoryName: string; type: CategoryType; amount: number; date: string; note?: string }[];
+    recentTransactions: { id: string; categoryName: string; type: CategoryType; amount: number; date: string; note?: string }[];
     currency: string;
   };
   files?: FileAttachment[];

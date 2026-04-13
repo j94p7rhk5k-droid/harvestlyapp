@@ -54,6 +54,19 @@ const tools: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'delete_transaction',
+    description:
+      'Delete a transaction by its ID. Use when the user says they made a mistake, wants to remove a transaction, or asks to undo a recently added transaction. Match the transaction by amount, date, category name, or note from the recent transactions list.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        transactionId: { type: 'string', description: 'The transaction ID to delete' },
+        description: { type: 'string', description: 'Brief description of what is being deleted (for confirmation)' },
+      },
+      required: ['transactionId', 'description'],
+    },
+  },
+  {
     name: 'update_category_budget',
     description: 'Update the planned budget amount for an existing category.',
     input_schema: {
@@ -106,8 +119,8 @@ function buildSystemPrompt(ctx: ChatRequest['budgetContext']): string {
 
   const txList = ctx.recentTransactions.length > 0
     ? ctx.recentTransactions
-        .slice(0, 15)
-        .map((t) => `  - ${t.date}: ${t.categoryName} (${t.type}) ${ctx.currency}${t.amount}${t.note ? ` — ${t.note}` : ''}`)
+        .slice(0, 20)
+        .map((t) => `  - [${t.id}] ${t.date}: ${t.categoryName} (${t.type}) ${ctx.currency}${t.amount}${t.note ? ` — ${t.note}` : ''}`)
         .join('\n')
     : '  (no transactions yet)';
 
