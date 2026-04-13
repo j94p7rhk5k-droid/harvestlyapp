@@ -240,14 +240,14 @@ export async function POST(req: NextRequest) {
     // Agentic loop — handle multi-turn tool use
     let currentMessages = [...claudeMessages];
     let iterations = 0;
-    const MAX_ITERATIONS = 15;
+    const MAX_ITERATIONS = 20;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
 
       const response = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8192,
+        max_tokens: 15000,
         system: systemPrompt,
         tools,
         messages: currentMessages,
