@@ -71,7 +71,7 @@ export default function ProgressRing({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="transform -rotate-90"
+        className="transform -rotate-90 -scale-x-100"
       >
         {/* Background track */}
         <circle
