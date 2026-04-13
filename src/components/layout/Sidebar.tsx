@@ -66,9 +66,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* ── Logo ─────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 h-[72px] border-b border-navy-800/50">
           <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow">
-              <Sprout className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/favicon.png"
+              alt="Harvestly"
+              className="w-9 h-9 rounded-xl shadow-glow group-hover:shadow-glow-lg transition-shadow"
+            />
             <span className="text-xl font-bold gradient-text-accent tracking-tight">
               Harvestly
             </span>
