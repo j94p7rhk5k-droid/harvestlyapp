@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useCallback,
   useRef,
   type ReactNode,
 } from 'react';
@@ -23,6 +22,9 @@ interface ModalProps {
   maxWidth?: string;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function Modal({
@@ -35,19 +37,25 @@ export default function Modal({
 }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
+  // Ref-based handler so the effect below depends ONLY on `open` —
+  // parent re-renders must not tear down the listener + steal focus.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  // Close on Escape + basic focus trap
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  useEffect(() => {
+    if (!open) return;
+
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== 'Tab' || !cardRef.current) return;
 
-      const focusables = cardRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
+      const focusables = cardRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -64,32 +72,26 @@ export default function Modal({
           first.focus();
         }
       }
-    },
-    [onClose],
-  );
+    };
 
-  useEffect(() => {
-    if (!open) return;
-
-    restoreFocusRef.current = document.activeElement as HTMLElement | null;
     document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
 
     // Auto-focus the first focusable element inside the card
     const raf = requestAnimationFrame(() => {
-      const first = cardRef.current?.querySelector<HTMLElement>(
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
+      const first = cardRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
       first?.focus();
     });
 
+    const previouslyFocused = restoreFocusRef.current;
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
-      restoreFocusRef.current?.focus?.();
+      // Only restore focus when the modal actually closes. The effect re-runs
+      // only when `open` flips, so this cleanup truly means "closing".
+      previouslyFocused?.focus?.();
     };
-  }, [open, handleKeyDown]);
+  }, [open]);
 
   if (!open) return null;
 
