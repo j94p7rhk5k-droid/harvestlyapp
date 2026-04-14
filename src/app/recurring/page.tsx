@@ -49,6 +49,7 @@ const TYPE_CONFIG: Record<CategoryType, { icon: typeof DollarSign; label: string
 const FREQUENCY_LABELS: Record<string, string> = {
   weekly: 'Weekly',
   biweekly: 'Bi-weekly',
+  semimonthly: 'Semi-monthly',
   monthly: 'Monthly',
   quarterly: 'Quarterly',
   yearly: 'Yearly',
@@ -76,10 +77,10 @@ export default function RecurringPage() {
 
     const recurring = budgetMonth.transactions.filter((t) => t.isRecurring);
 
-    // Deduplicate: one entry per categoryName + type + amount
+    // Deduplicate: one entry per categoryName + type + amount + frequency
     const seen = new Set<string>();
     const unique = recurring.filter((tx) => {
-      const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}`;
+      const key = `${tx.categoryName.toLowerCase()}-${tx.type}-${tx.amount}-${tx.recurrenceFrequency ?? 'monthly'}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -221,7 +222,9 @@ export default function RecurringPage() {
                               <p className="text-sm font-semibold text-white tabular-nums">
                                 {formatCurrency(tx.amount, currency)}
                               </p>
-                              {(tx.recurrenceFrequency === 'biweekly' || tx.recurrenceFrequency === 'weekly') && (
+                              {(tx.recurrenceFrequency === 'biweekly' ||
+                                tx.recurrenceFrequency === 'weekly' ||
+                                tx.recurrenceFrequency === 'semimonthly') && (
                                 <p className="text-[10px] text-navy-400 tabular-nums">
                                   ~{formatCurrency(tx.amount * getMonthlyOccurrences(tx.recurrenceFrequency), currency)}/mo
                                 </p>

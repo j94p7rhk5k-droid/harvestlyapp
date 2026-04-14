@@ -83,6 +83,23 @@ export function getRecurringDatesInMonth(
       return dates.length > 0 ? dates : [`${targetMonth}-${String(Math.min(startDay, lastDay)).padStart(2, '0')}`];
     }
 
+    case 'semimonthly': {
+      // Twice a month — common payroll cadence (e.g. 1st/15th, 15th/last day).
+      // First date = startDay; second date ≈ 15 days later, clamped to the
+      // end of the month. If the first day is already so late that adding 15
+      // would overflow, use the last day of the month as the second date.
+      const day1 = Math.min(startDay, lastDay);
+      let day2 = day1 + 15;
+      if (day2 > lastDay) day2 = lastDay;
+      if (day2 === day1) {
+        return [`${targetMonth}-${String(day1).padStart(2, '0')}`];
+      }
+      return [
+        `${targetMonth}-${String(day1).padStart(2, '0')}`,
+        `${targetMonth}-${String(day2).padStart(2, '0')}`,
+      ];
+    }
+
     case 'monthly': {
       const day = Math.min(startDay, lastDay);
       return [`${targetMonth}-${String(day).padStart(2, '0')}`];
@@ -120,6 +137,7 @@ export function getMonthlyOccurrences(frequency: RecurrenceFrequency | undefined
   switch (frequency ?? 'monthly') {
     case 'weekly': return 4;
     case 'biweekly': return 2;
+    case 'semimonthly': return 2;
     case 'monthly': return 1;
     case 'quarterly': return 1 / 3;
     case 'yearly': return 1 / 12;

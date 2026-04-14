@@ -245,7 +245,8 @@ export default function AddTransactionModal({
             <div className="flex flex-wrap gap-2">
               {([
                 { value: 'weekly', label: 'Weekly' },
-                { value: 'biweekly', label: 'Bi-weekly' },
+                { value: 'biweekly', label: 'Bi-weekly (every 2 weeks)' },
+                { value: 'semimonthly', label: 'Semi-monthly (twice a month)' },
                 { value: 'monthly', label: 'Monthly' },
                 { value: 'quarterly', label: 'Quarterly' },
                 { value: 'yearly', label: 'Yearly' },
