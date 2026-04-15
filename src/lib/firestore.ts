@@ -319,9 +319,39 @@ export async function addTransaction(
   transaction: NewTransaction,
 ): Promise<Transaction> {
   const bm = await getBudgetMonth(userId, month);
+
+  // Recurring transactions expand to all occurrences in the target month
+  // immediately — so bi-weekly salary creates two April transactions, not
+  // one. Future months pick them up via syncRecurringTransactions when
+  // they're first loaded.
+  if (transaction.isRecurring && transaction.recurrenceFrequency) {
+    const dates = getRecurringDatesInMonth(
+      transaction.date,
+      transaction.recurrenceFrequency,
+      month,
+    );
+    // Always honour the user-picked date even if the frequency logic
+    // would otherwise skip it (e.g. quarterly in a non-anchor month).
+    if (dates.length === 0 || !dates.includes(transaction.date)) {
+      dates.push(transaction.date);
+    }
+    // Unique + sorted
+    const uniqueDates = Array.from(new Set(dates)).sort();
+
+    const created: Transaction[] = uniqueDates.map((date) => ({
+      ...transaction,
+      id: generateId(),
+      date,
+    }));
+    bm.transactions.push(...created);
+    recalcCategoryActuals(bm);
+    await saveBudgetMonth(bm);
+    // Return the occurrence on the user-picked date (or the first one).
+    return created.find((t) => t.date === transaction.date) ?? created[0];
+  }
+
   const full: Transaction = { ...transaction, id: generateId() };
   bm.transactions.push(full);
-  // Recalculate the category actual
   recalcCategoryActuals(bm);
   await saveBudgetMonth(bm);
   return full;
